@@ -1,0 +1,14 @@
+# Environments
+.env
+.venv
+env/
+venv/
+
+# Google Credentials
+credentials.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

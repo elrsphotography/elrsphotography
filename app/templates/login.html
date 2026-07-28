@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - ELRS Photography</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/logo.png') }}">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+        // Check local storage for theme preference to prevent flash
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+    </script>
+</head>
+<body class="bg-neutral-50 dark:bg-neutral-950 flex items-center justify-center min-h-screen transition-colors duration-300">
+
+    <!-- Theme Toggle -->
+    <button onclick="toggleTheme()" class="absolute top-6 right-6 text-neutral-500 hover:text-black dark:hover:text-white transition">
+        <i class="fa-solid fa-circle-half-stroke text-xl"></i>
+    </button>
+
+    <div class="w-full max-w-md bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-none shadow-2xl p-10 relative overflow-hidden transition-colors duration-300">
+        
+        <!-- Flash Messages Overlay -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="mb-6">
+                    {% for category, message in messages %}
+                        <div class="p-3 border text-xs text-center font-mono tracking-widest uppercase
+                            {% if category == 'error' %} border-black text-black dark:border-white dark:text-white bg-neutral-100 dark:bg-neutral-800 {% else %} border-neutral-300 dark:border-neutral-600 text-neutral-800 dark:text-neutral-200 {% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="text-center mb-10">
+            <h1 class="text-3xl font-serif font-bold text-black dark:text-white tracking-tighter">ELRS<span class="text-neutral-400">.</span></h1>
+            <p class="text-xs font-mono tracking-widest uppercase text-neutral-500 mt-2">System Access</p>
+        </div>
+
+        <!-- ================= LOGIN SECTION ================= -->
+        <div id="login-section" class="transition-all duration-300">
+            <form action="{{ url_for('auth.login') }}" method="POST" class="space-y-5">
+                <div>
+                    <label class="block text-xs font-mono tracking-widest uppercase text-neutral-500 mb-2">Username</label>
+                    <input type="text" name="username" required class="block w-full px-4 py-3 bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white transition-colors">
+                </div>
+                <div>
+                    <label class="block text-xs font-mono tracking-widest uppercase text-neutral-500 mb-2">Password</label>
+                    <input type="password" name="password" required class="block w-full px-4 py-3 bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white transition-colors">
+                </div>
+                <button type="submit" class="w-full bg-black dark:bg-white text-white dark:text-black font-mono text-xs uppercase tracking-widest py-3 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors mt-4">
+                    Authenticate
+                </button>
+            </form>
+            
+            <div class="mt-8 text-center border-t border-neutral-200 dark:border-neutral-800 pt-6">
+                <p class="text-xs font-mono text-neutral-500">
+                    <button onclick="toggleForms()" class="text-black dark:text-white border-b border-black dark:border-white hover:text-neutral-500 hover:border-neutral-500 transition-colors uppercase tracking-widest pb-0.5">Initialize Account</button>
+                </p>
+            </div>
+        </div>
+
+        <!-- ================= REGISTER SECTION ================= -->
+        <div id="register-section" class="hidden transition-all duration-300">
+            <form action="{{ url_for('auth.register') }}" method="POST" class="space-y-5">
+                <div>
+                    <label class="block text-xs font-mono tracking-widest uppercase text-neutral-500 mb-2">Username</label>
+                    <input type="text" name="username" required class="block w-full px-4 py-3 bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white transition-colors">
+                </div>
+                <div>
+                    <label class="block text-xs font-mono tracking-widest uppercase text-neutral-500 mb-2">Password</label>
+                    <input type="password" name="password" required class="block w-full px-4 py-3 bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white transition-colors">
+                </div>
+                <div>
+                    <label class="block text-xs font-mono tracking-widest uppercase text-neutral-500 mb-2">Security Key</label>
+                    <input type="password" name="secret_key" required class="block w-full px-4 py-3 bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white transition-colors">
+                </div>
+                <button type="submit" class="w-full bg-black dark:bg-white text-white dark:text-black font-mono text-xs uppercase tracking-widest py-3 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors mt-4">
+                    Register Admin
+                </button>
+            </form>
+            
+            <div class="mt-8 text-center border-t border-neutral-200 dark:border-neutral-800 pt-6">
+                <p class="text-xs font-mono text-neutral-500">
+                    <button onclick="toggleForms()" class="text-black dark:text-white border-b border-black dark:border-white hover:text-neutral-500 hover:border-neutral-500 transition-colors uppercase tracking-widest pb-0.5">Return to Login</button>
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        function toggleForms() {
+            const loginSection = document.getElementById('login-section');
+            const registerSection = document.getElementById('register-section');
+            
+            if (loginSection.classList.contains('hidden')) {
+                loginSection.classList.remove('hidden');
+                registerSection.classList.add('hidden');
+            } else {
+                loginSection.classList.add('hidden');
+                registerSection.classList.remove('hidden');
+            }
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+        }
+    </script>
+</body>
+</html>

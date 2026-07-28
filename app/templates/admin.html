@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/logo.png') }}">
+    <title>Admin Dashboard - ELRS Photography</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+    </script>
+</head>
+<body class="bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans min-h-screen transition-colors duration-300">
+
+    <!-- Navbar -->
+    <nav class="bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <a href="#" class="text-2xl font-serif font-bold tracking-tighter text-black dark:text-white">ELRS<span class="text-neutral-400">.</span></a>
+                <span class="text-[10px] font-mono tracking-widest uppercase border border-neutral-300 dark:border-neutral-700 px-2 py-0.5 ml-2">Admin</span>
+            </div>
+            <div class="flex items-center space-x-6">
+                <button onclick="toggleTheme()" class="text-neutral-500 hover:text-black dark:hover:text-white transition">
+                    <i class="fa-solid fa-circle-half-stroke text-lg"></i>
+                </button>
+                <span class="text-xs font-mono uppercase tracking-widest hidden md:inline">{{ username }}</span>
+                <a href="{{ url_for('auth.logout') }}" class="text-xs font-mono uppercase tracking-widest text-neutral-500 hover:text-black dark:hover:text-white border-b border-transparent hover:border-black dark:hover:border-white pb-0.5 transition-all">
+                    Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="p-4 border text-xs font-mono tracking-widest uppercase flex items-center justify-between {% if category == 'error' %} border-black text-black bg-neutral-100 dark:border-white dark:text-white dark:bg-neutral-900 {% else %} border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 {% endif %}">
+                        <span>{{ message }}</span>
+                        <button onclick="this.parentElement.remove()" class="hover:text-neutral-500 transition">&times;</button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <!-- Service Account Email Banner -->
+        <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-colors duration-300">
+            <div class="space-y-3">
+                <div class="flex items-center space-x-3">
+                    <i class="fa-solid fa-server text-black dark:text-white"></i>
+                    <h2 class="font-mono text-xs uppercase tracking-widest font-bold">API Service Account</h2>
+                </div>
+                <p class="text-sm font-light text-neutral-600 dark:text-neutral-400 max-w-2xl">
+                    Grant 'Viewer' access to your Google Drive folders using this system email. This enables secure, automated image ingestion.
+                </p>
+                <code id="service-email" class="inline-block bg-neutral-100 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-black dark:text-white font-mono text-xs px-4 py-2 select-all mt-2">
+                    {{ service_email }}
+                </code>
+            </div>
+            <button onclick="copyServiceEmail()" class="bg-black dark:bg-white text-white dark:text-black font-mono text-xs uppercase tracking-widest px-6 py-3 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors shrink-0">
+                <span id="copy-btn-text">Copy</span>
+            </button>
+        </div>
+
+        <!-- Metrics Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 flex flex-col justify-between transition-colors duration-300">
+                <p class="text-[10px] font-mono tracking-widest uppercase text-neutral-500 mb-4">Total Clients</p>
+                <h3 class="text-4xl font-serif text-black dark:text-white">{{ total_clients }}</h3>
+            </div>
+            <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 flex flex-col justify-between transition-colors duration-300">
+                <p class="text-[10px] font-mono tracking-widest uppercase text-neutral-500 mb-4">Event Directories</p>
+                <h3 class="text-4xl font-serif text-black dark:text-white">{{ total_events }}</h3>
+            </div>
+            <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 flex flex-col justify-between transition-colors duration-300">
+                <p class="text-[10px] font-mono tracking-widest uppercase text-neutral-500 mb-4">Finalized Assets</p>
+                <h3 class="text-4xl font-serif text-black dark:text-white">{{ total_selected_images }}</h3>
+            </div>
+        </div>
+
+        <!-- Add Client Section -->
+        <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-8 transition-colors duration-300">
+            <h2 class="font-mono text-xs uppercase tracking-widest font-bold mb-6 flex items-center">
+                <i class="fa-solid fa-plus mr-3"></i> Initialize Portal
+            </h2>
+            <form action="{{ url_for('admin.add_client') }}" method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                <div>
+                    <label class="block text-[10px] font-mono tracking-widest uppercase text-neutral-500 mb-2">UID (e.g. ELRS26)</label>
+                    <input type="text" name="special_id" required class="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 focus:border-black dark:focus:border-white focus:outline-none uppercase font-mono text-sm transition-colors">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-mono tracking-widest uppercase text-neutral-500 mb-2">Client Identity</label>
+                    <input type="text" name="client_name" required class="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 focus:border-black dark:focus:border-white focus:outline-none text-sm transition-colors">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-mono tracking-widest uppercase text-neutral-500 mb-2">Contact Link</label>
+                    <input type="email" name="email" class="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 focus:border-black dark:focus:border-white focus:outline-none text-sm transition-colors">
+                </div>
+                <div>
+                    <button type="submit" class="w-full bg-black dark:bg-white text-white dark:text-black font-mono text-[10px] uppercase tracking-widest py-3 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors">
+                        Generate
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Client List & Nested Event Manager -->
+        <div class="space-y-6">
+            <h2 class="font-mono text-xs uppercase tracking-widest font-bold border-b border-black dark:border-white pb-3">
+                Active Archives
+            </h2>
+
+            {% if not clients %}
+                <div class="p-10 text-center border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 transition-colors duration-300">
+                    <p class="text-xs font-mono uppercase tracking-widest text-neutral-500">System Empty. Initialize a client portal above.</p>
+                </div>
+            {% endif %}
+
+            {% for client in clients %}
+                <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 transition-colors duration-300">
+                    
+                    <!-- Client Header -->
+<div class="px-8 py-6 border-b border-neutral-200 dark:border-neutral-800 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-neutral-50 dark:bg-neutral-950">
+    <div>
+        <div class="flex items-center space-x-4 mb-2">
+            <span class="bg-black dark:bg-white text-white dark:text-black font-mono text-[10px] tracking-widest px-2 py-1">
+                {{ client.special_id }}
+            </span>
+            <h3 class="text-lg font-serif text-black dark:text-white">{{ client.client_name }}</h3>
+            
+            <!-- NEW: Completion Badge -->
+            {% if client.selection_status == 'COMPLETED' %}
+                <span class="bg-green-100 border border-green-400 text-green-700 text-[10px] font-mono tracking-widest uppercase px-2 py-0.5 ml-3 flex items-center">
+                    <i class="fa-solid fa-check-double mr-1"></i> Finalized
+                </span>
+            {% endif %}
+        </div>
+        <p class="text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+            {% if client.email %} {{ client.email }} | {% endif %}
+            Selections: <strong class="text-black dark:text-white">{{ client.total_selections }}</strong>
+        </p>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center space-x-4">
+        <button onclick="copyGalleryLink('{{ client.special_id }}')" class="text-xs font-mono uppercase tracking-widest text-neutral-500 hover:text-black dark:hover:text-white transition-colors">
+            Copy Link
+        </button>
+        <a href="{{ url_for('gallery.client_gallery', special_id=client.special_id) }}" target="_blank" class="text-xs font-mono uppercase tracking-widest text-neutral-500 hover:text-black dark:hover:text-white transition-colors">
+            Preview
+        </a>
+        <a href="{{ url_for('downloads.download_zip', special_id=client.special_id) }}" class="text-xs font-mono uppercase tracking-widest text-black dark:text-white border border-black dark:border-white px-3 py-1 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors">
+        Download ZIP
+        </a>
+        <form action="{{ url_for('admin.delete_client', special_id=client.special_id) }}" method="POST" onsubmit="return confirm('Purge {{ client.special_id }} and all associated data from the system?')">
+            <button type="submit" class="text-xs font-mono uppercase tracking-widest border border-neutral-300 dark:border-neutral-700 px-3 py-1 hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white transition-colors">
+                Purge
+            </button>
+        </form>
+    </div>
+</div>
+
+                    <!-- Events Table -->
+                    <div class="p-8">
+                        {% if client.events %}
+                            <div class="overflow-x-auto mb-8">
+                                <table class="w-full text-left text-sm">
+                                    <thead>
+                                        <tr class="border-b border-neutral-200 dark:border-neutral-800 text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+                                            <th class="py-3 px-2 font-normal">Directory Name</th>
+                                            <th class="py-3 px-2 font-normal">API Reference (Folder ID)</th>
+                                            <th class="py-3 px-2 font-normal">Assets</th>
+                                            <th class="py-3 px-2 font-normal text-right">Command</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-neutral-100 dark:divide-neutral-800">
+                                        {% for event in client.events %}
+                                            <tr class="group hover:bg-neutral-50 dark:hover:bg-neutral-950 transition-colors">
+                                                <td class="py-4 px-2 font-serif text-black dark:text-white">{{ event.event_name }}</td>
+                                                <td class="py-4 px-2 font-mono text-[10px] text-neutral-500">{{ event.folder_id }}</td>
+                                                <td class="py-4 px-2">
+                                                    <span class="font-mono text-[10px] border border-neutral-200 dark:border-neutral-700 px-2 py-1 bg-white dark:bg-neutral-900">
+                                                        {{ event.selection_count }}
+                                                    </span>
+                                                </td>
+                                                <td class="py-4 px-2 text-right">
+                                                    <form action="{{ url_for('admin.delete_event', special_id=client.special_id, event_id=event.event_id) }}" method="POST" class="inline" onsubmit="return confirm('Disconnect directory {{ event.event_name }}?')">
+                                                        <button type="submit" class="text-[10px] font-mono uppercase tracking-widest text-neutral-400 hover:text-black dark:hover:text-white transition-colors">
+                                                            Disconnect
+                                                        </button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-[10px] font-mono tracking-widest uppercase text-neutral-400 mb-8">No directories mapped. Input a Google Drive link to begin ingestion.</p>
+                        {% endif %}
+
+                        <!-- Add Event Inline Form -->
+                        <form action="{{ url_for('admin.add_event') }}" method="POST" class="grid grid-cols-1 md:grid-cols-7 gap-4">
+                            <input type="hidden" name="special_id" value="{{ client.special_id }}">
+                            <div class="md:col-span-2">
+                                <input type="text" name="event_name" placeholder="Directory Title" required class="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 focus:border-black dark:focus:border-white focus:outline-none text-xs font-mono transition-colors">
+                            </div>
+                            <div class="md:col-span-4">
+                                <input type="text" name="drive_url" placeholder="Drive URL or UID" required class="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 focus:border-black dark:focus:border-white focus:outline-none text-xs font-mono transition-colors">
+                            </div>
+                            <div class="md:col-span-1">
+                                <button type="submit" class="w-full border border-black dark:border-white text-black dark:text-white hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black font-mono text-[10px] uppercase tracking-widest py-2.5 transition-colors">
+                                    Map
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- JavaScript Handlers -->
+    <script>
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+        }
+
+        function copyServiceEmail() {
+            const email = document.getElementById('service-email').innerText.trim();
+            navigator.clipboard.writeText(email).then(() => {
+                const btnText = document.getElementById('copy-btn-text');
+                btnText.innerText = "COPIED";
+                setTimeout(() => { btnText.innerText = "COPY"; }, 2000);
+            });
+        }
+
+        function copyGalleryLink(specialId) {
+            const link = `${window.location.origin}/gallery/${specialId}`;
+            navigator.clipboard.writeText(link).then(() => {
+                alert(`Path mapped: ${link}`);
+            });
+        }
+    </script>
+</body>
+</html>

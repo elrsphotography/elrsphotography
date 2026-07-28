@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ client.client_name }} - ELRS Archives</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/logo.png') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = { darkMode: 'class', }
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+        } else {
+            document.documentElement.classList.remove('dark')
+        }
+    </script>
+    <style>
+        /* Custom scrollbar for aesthetic */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #525252; border-radius: 10px; }
+        .masonry-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
+        .zoom-active { transform: scale(1.5); cursor: zoom-out !important; }
+    </style>
+</head>
+<body class="bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans min-h-screen transition-colors duration-300 pb-24">
+
+    <!-- Header -->
+    <nav class="sticky top-0 z-40 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-serif font-bold tracking-tighter">{{ client.client_name }}</h1>
+                <p class="text-[10px] font-mono tracking-widest uppercase text-neutral-500">Client Archive: {{ client.special_id }}</p>
+            </div>
+            <button onclick="toggleTheme()" class="text-neutral-500 hover:text-black dark:hover:text-white transition">
+                <i class="fa-solid fa-circle-half-stroke text-lg"></i>
+            </button>
+        </div>
+        
+        <!-- Event Tabs -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto gap-6 py-3 scrollbar-hide border-t border-neutral-100 dark:border-neutral-900 mt-2">
+            {% for event in client.events %}
+                <button onclick="loadEvent('{{ event.event_id }}', '{{ event.folder_id }}', this)" 
+                        class="event-tab text-xs font-mono uppercase tracking-widest whitespace-nowrap pb-1 border-b-2 border-transparent text-neutral-500 hover:text-black dark:hover:text-white transition-colors"
+                        data-event-id="{{ event.event_id }}">
+                    {{ event.event_name }}
+                </button>
+            {% else %}
+                <span class="text-xs font-mono uppercase text-neutral-500">No events found.</span>
+            {% endfor %}
+        </div>
+    </nav>
+
+    <!-- Main Gallery Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div id="gallery-grid" class="masonry-grid">
+            <!-- Images injected here via JS -->
+        </div>
+        
+        <!-- Loading Sentinel for Intersection Observer (Infinite Scroll) -->
+        <div id="loading-sentinel" class="w-full text-center py-10 hidden">
+            <i class="fa-solid fa-circle-notch fa-spin text-2xl text-neutral-400"></i>
+            <p class="text-[10px] font-mono tracking-widest uppercase text-neutral-500 mt-3">Fetching Archives</p>
+        </div>
+    </main>
+
+<!-- Floating Action Bar for Selections -->
+    <div id="action-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-black dark:bg-white text-white dark:text-black px-6 py-4 flex items-center gap-6 shadow-2xl translate-y-24 transition-transform duration-500 z-40 w-[90%] md:w-auto justify-between md:justify-start">
+        <div class="text-xs font-mono uppercase tracking-widest flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+            <span>Selected: <span id="selection-count" class="font-bold text-lg">0</span></span>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="saveSelections()" id="save-btn" class="bg-neutral-800 dark:bg-neutral-200 text-white dark:text-black text-[10px] font-mono uppercase tracking-widest px-4 py-3 hover:bg-neutral-700 dark:hover:bg-neutral-300 transition">
+                Save
+            </button>
+            <button onclick="submitFinalSelection()" id="submit-btn" class="bg-green-600 text-white text-[10px] font-mono uppercase tracking-widest px-4 py-3 hover:bg-green-500 transition shadow-lg">
+                Submit Final
+            </button>
+        </div>
+    </div>
+
+    <!-- Lightbox Modal -->
+    <div id="lightbox" class="fixed inset-0 bg-neutral-50/95 dark:bg-neutral-950/95 z-50 hidden flex-col items-center justify-center transition-colors duration-300">
+        <div class="absolute top-6 right-6 flex gap-6">
+            <span id="lightbox-counter" class="text-xs font-mono tracking-widest uppercase text-neutral-500 mt-1"></span>
+            <button onclick="toggleZoom()" class="text-neutral-500 hover:text-black dark:hover:text-white"><i class="fa-solid fa-magnifying-glass-plus text-xl"></i></button>
+            <button onclick="closeLightbox()" class="text-neutral-500 hover:text-black dark:hover:text-white"><i class="fa-solid fa-xmark text-2xl"></i></button>
+        </div>
+        
+        <button onclick="prevImage()" class="absolute left-6 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black dark:hover:text-white text-3xl p-4"><i class="fa-solid fa-angle-left"></i></button>
+        
+        <div class="w-full h-full max-w-5xl max-h-[85vh] flex items-center justify-center p-4 overflow-auto">
+            <img id="lightbox-img" src="" alt="Full Preview" class="max-w-full max-h-full object-contain cursor-zoom-in transition-transform duration-300" onclick="toggleZoom()">
+        </div>
+        
+        <button onclick="nextImage()" class="absolute right-6 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black dark:hover:text-white text-3xl p-4"><i class="fa-solid fa-angle-right"></i></button>
+    </div>
+
+    <script>
+        const specialId = "{{ client.special_id }}";
+        let currentEventId = null;
+        let currentFolderId = null;
+        let nextPageToken = null;
+        let isLoading = false;
+        let selectedFileIds = new Set();
+        let currentImages = []; // Stores current grid images for lightbox navigation
+        let currentLightboxIndex = 0;
+
+        // Intersection Observer for Infinite Pagination
+        const observer = new IntersectionObserver((entries) => {
+            if (entries[0].isIntersecting && nextPageToken && !isLoading) {
+                fetchImages(currentFolderId, nextPageToken);
+            }
+        }, { rootMargin: '200px' }); // Trigger fetch 200px before bottom
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Auto-load first event tab if exists
+            const firstTab = document.querySelector('.event-tab');
+            if (firstTab) firstTab.click();
+            
+            // Keyboard nav for lightbox
+            document.addEventListener('keydown', (e) => {
+                if (document.getElementById('lightbox').classList.contains('hidden')) return;
+                if (e.key === 'Escape') closeLightbox();
+                if (e.key === 'ArrowRight') nextImage();
+                if (e.key === 'ArrowLeft') prevImage();
+            });
+        });
+
+        async function loadEvent(eventId, folderId, tabElement) {
+            if (currentEventId === eventId) return;
+            
+            // Reset UI
+            document.querySelectorAll('.event-tab').forEach(el => {
+                el.classList.remove('border-black', 'dark:border-white', 'text-black', 'dark:text-white');
+                el.classList.add('border-transparent', 'text-neutral-500');
+            });
+            tabElement.classList.add('border-black', 'dark:border-white', 'text-black', 'dark:text-white');
+            tabElement.classList.remove('border-transparent', 'text-neutral-500');
+
+            document.getElementById('gallery-grid').innerHTML = '';
+            currentEventId = eventId;
+            currentFolderId = folderId;
+            nextPageToken = null;
+            currentImages = [];
+            
+            // Fetch saved selections from DB first
+            try {
+                const res = await fetch(`/api/selections/${specialId}/${eventId}`);
+                const data = await res.json();
+                selectedFileIds = new Set(data.selected_ids || []);
+                updateActionBar();
+            } catch (err) {
+                console.error("Failed to load selections", err);
+            }
+
+            fetchImages(folderId);
+        }
+
+        async function fetchImages(folderId, pageToken = '') {
+            if (isLoading) return;
+            isLoading = true;
+            document.getElementById('loading-sentinel').classList.remove('hidden');
+
+            const url = `/api/images/${folderId}${pageToken ? `?pageToken=${pageToken}` : ''}`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                nextPageToken = data.next_page_token;
+                renderGrid(data.images);
+                
+                if (nextPageToken) {
+                    observer.observe(document.getElementById('loading-sentinel'));
+                } else {
+                    observer.disconnect();
+                    document.getElementById('loading-sentinel').classList.add('hidden');
+                }
+            } catch (error) {
+                console.error("Error fetching images:", error);
+            } finally {
+                isLoading = false;
+            }
+        }
+
+        function renderGrid(images) {
+            const grid = document.getElementById('gallery-grid');
+            images.forEach((img, index) => {
+                const globalIndex = currentImages.length;
+                currentImages.push(img);
+                
+                const isSelected = selectedFileIds.has(img.id);
+                
+                const card = document.createElement('div');
+                card.className = "relative group aspect-[4/5] bg-neutral-200 dark:bg-neutral-800 overflow-hidden";
+                card.innerHTML = `
+                    <img src="${img.thumbnail}" alt="${img.name}" loading="lazy" 
+                         onerror="this.onerror=null; this.src='${img.full}';" 
+                         class="w-full h-full object-cover cursor-pointer transition-transform duration-700 group-hover:scale-105" 
+                         onclick="openLightbox(${globalIndex})">
+                    <div class="absolute top-3 right-3 z-10">
+                        <button onclick="toggleSelection('${img.id}', this)" class="w-8 h-8 flex items-center justify-center border-2 transition-all ${isSelected ? 'bg-black border-black text-white dark:bg-white dark:border-white dark:text-black' : 'border-white/70 bg-black/20 text-transparent hover:border-white'}">
+                            <i class="fa-solid fa-check text-sm"></i>
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function toggleSelection(fileId, btnElement) {
+            if (selectedFileIds.has(fileId)) {
+                selectedFileIds.delete(fileId);
+                btnElement.className = "w-8 h-8 flex items-center justify-center border-2 border-white/70 bg-black/20 text-transparent hover:border-white transition-all";
+            } else {
+                selectedFileIds.add(fileId);
+                btnElement.className = "w-8 h-8 flex items-center justify-center border-2 bg-black border-black text-white dark:bg-white dark:border-white dark:text-black transition-all";
+            }
+            updateActionBar();
+        }
+
+        function updateActionBar() {
+            const count = selectedFileIds.size;
+            document.getElementById('selection-count').innerText = count;
+            const bar = document.getElementById('action-bar');
+            
+            if (count > 0) {
+                bar.classList.remove('translate-y-24'); // Show bar
+            } else {
+                bar.classList.add('translate-y-24'); // Hide bar
+            }
+        }
+
+        async function saveSelections() {
+            const btn = document.getElementById('save-btn');
+            btn.innerText = "SAVING...";
+            
+            try {
+                const response = await fetch('/api/selections/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        special_id: specialId,
+                        event_id: currentEventId,
+                        selected_ids: Array.from(selectedFileIds)
+                    })
+                });
+                
+                if (response.ok) {
+                    btn.innerText = "SAVED!";
+                    setTimeout(() => { btn.innerText = "Save Progress"; }, 2000);
+                }
+            } catch (error) {
+                btn.innerText = "ERROR";
+                console.error(error);
+            }
+        }
+
+        // --- Lightbox Functions ---
+        function openLightbox(index) {
+            currentLightboxIndex = index;
+            const imgData = currentImages[index];
+            const imgEl = document.getElementById('lightbox-img');
+            
+            imgEl.src = imgData.thumbnail; // Load low-res first instantly
+            
+            // Swap to full res in background
+            const fullImage = new Image();
+            fullImage.src = imgData.full;
+            fullImage.onload = () => { if(currentLightboxIndex === index) imgEl.src = imgData.full; };
+
+            document.getElementById('lightbox-counter').innerText = `${index + 1} / ${currentImages.length}`;
+            document.getElementById('lightbox').classList.remove('hidden');
+            document.getElementById('lightbox').classList.add('flex');
+            document.body.style.overflow = 'hidden'; // Prevent background scroll
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.add('hidden');
+            document.getElementById('lightbox').classList.remove('flex');
+            document.body.style.overflow = '';
+            document.getElementById('lightbox-img').classList.remove('zoom-active');
+        }
+
+        function nextImage() {
+            if (currentLightboxIndex < currentImages.length - 1) {
+                document.getElementById('lightbox-img').classList.remove('zoom-active');
+                openLightbox(currentLightboxIndex + 1);
+            }
+        }
+
+        function prevImage() {
+            if (currentLightboxIndex > 0) {
+                document.getElementById('lightbox-img').classList.remove('zoom-active');
+                openLightbox(currentLightboxIndex - 1);
+            }
+        }
+
+        function toggleZoom() {
+            const img = document.getElementById('lightbox-img');
+            img.classList.toggle('zoom-active');
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+        }
+
+        // Add this new function to your <script> block
+        async function submitFinalSelection() {
+            if(!confirm("Are you sure you are done? This will notify the photographer.")) return;
+            
+            const btn = document.getElementById('submit-btn');
+            btn.innerText = "SUBMITTING...";
+            
+            // Auto-save first
+            await fetch('/api/selections/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ special_id: specialId, event_id: currentEventId, selected_ids: Array.from(selectedFileIds) })
+            });
+
+            // Mark completed
+            try {
+                const response = await fetch('/api/selections/complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ special_id: specialId })
+                });
+                
+                if (response.ok) {
+                    btn.innerText = "COMPLETED ✓";
+                    btn.classList.remove('bg-green-600', 'hover:bg-green-500');
+                    btn.classList.add('bg-black', 'dark:bg-white', 'opacity-50', 'cursor-not-allowed');
+                    btn.disabled = true;
+                    alert("Thank you! Your final selections have been sent to the photographer.");
+                }
+            } catch (error) {
+                btn.innerText = "ERROR";
+            }
+        }
+    </script>
+</body>
+</html>
