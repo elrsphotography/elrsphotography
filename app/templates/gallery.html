@@ -118,6 +118,10 @@
         <!-- Top Right Controls -->
         <div class="absolute top-6 right-6 flex items-center gap-6 z-10">
             <span id="lightbox-counter" class="text-xs font-mono tracking-widest uppercase text-neutral-500 mt-1 hidden sm:block"></span>
+            <!-- NEW: Total Selected Counter -->
+            <span class="text-[10px] font-mono tracking-widest uppercase text-neutral-500 mt-1 hidden sm:block border-r border-neutral-300 dark:border-neutral-700 pr-6">
+                Total: <span id="lightbox-total-count" class="text-black dark:text-white font-bold text-xs">0</span>
+            </span>
             
             <!-- Lightbox Select Button -->
             <button id="lightbox-select-btn" onclick="toggleLightboxSelection()" class="border px-4 py-2 text-xs font-mono uppercase tracking-widest transition-colors flex items-center gap-2">
@@ -280,16 +284,24 @@
 
         function updateActionBar() {
             const count = selectedFileIds.size;
-            document.getElementById('selection-count').innerText = count;
-            const bar = document.getElementById('action-bar');
             
+            // Update bottom action bar counter
+            document.getElementById('selection-count').innerText = count;
+            
+            // Update the new lightbox counter
+            const lightboxTotalEl = document.getElementById('lightbox-total-count');
+            if (lightboxTotalEl) {
+                lightboxTotalEl.innerText = count;
+            }
+
+            // Show/Hide bottom action bar
+            const bar = document.getElementById('action-bar');
             if (count > 0) {
                 bar.classList.remove('translate-y-24');
             } else {
                 bar.classList.add('translate-y-24');
             }
         }
-
         async function saveSelections() {
             const btn = document.getElementById('save-btn');
             btn.innerText = "SAVING...";
