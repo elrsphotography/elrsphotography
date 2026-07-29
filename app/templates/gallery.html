@@ -30,9 +30,15 @@
     <nav class="sticky top-0 z-40 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800 transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 relative flex items-center justify-between">
             
-            <!-- Left: Brand Title -->
-            <div class="text-xl font-serif font-bold tracking-tighter hidden sm:block">
-                ELRS Photography
+            <!-- Left: Back Button & Brand Title -->
+            <div class="flex items-center gap-4 z-10">
+                <a href="{{ url_for('index') }}" class="text-neutral-500 hover:text-black dark:hover:text-white transition flex items-center gap-2 text-xs font-mono uppercase tracking-widest group">
+                    <i class="fa-solid fa-arrow-left-long group-hover:-translate-x-1 transition-transform"></i>
+                    <span class="hidden sm:inline">Return</span>
+                </a>
+                <div class="text-xl font-serif font-bold tracking-tighter hidden lg:block border-l border-neutral-300 dark:border-neutral-700 pl-4 ml-2">
+                    ELRS Photography
+                </div>
             </div>
             
             <!-- Center: Client Info -->
