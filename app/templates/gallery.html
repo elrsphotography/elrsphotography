@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ client.client_name }} - ELRS Archives</title>
-<link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/logo.png') }}?v=2">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/logo.png') }}?v=2">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
@@ -26,20 +26,29 @@
 </head>
 <body class="bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans min-h-screen transition-colors duration-300 pb-24">
 
-    <!-- Header -->
+    <!-- Header (Updated Layout) -->
     <nav class="sticky top-0 z-40 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800 transition-colors duration-300">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-            <div>
-                <h1 class="text-xl font-serif font-bold tracking-tighter">{{ client.client_name }}</h1>
-                <p class="text-[10px] font-mono tracking-widest uppercase text-neutral-500">Client Archive: {{ client.special_id }}</p>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 relative flex items-center justify-between">
+            
+            <!-- Left: Brand Title -->
+            <div class="text-xl font-serif font-bold tracking-tighter hidden sm:block">
+                ELRS Photography
             </div>
-            <button onclick="toggleTheme()" class="text-neutral-500 hover:text-black dark:hover:text-white transition">
+            
+            <!-- Center: Client Info -->
+            <div class="absolute left-1/2 -translate-x-1/2 text-center w-full sm:w-auto pointer-events-none">
+                <h1 class="text-lg md:text-xl font-serif font-bold tracking-tighter">{{ client.client_name }}</h1>
+                <p class="text-[10px] font-mono tracking-widest uppercase text-neutral-500 mt-1">Client Archive: {{ client.special_id }}</p>
+            </div>
+            
+            <!-- Right: Theme Toggle -->
+            <button onclick="toggleTheme()" class="text-neutral-500 hover:text-black dark:hover:text-white transition ml-auto z-10 relative">
                 <i class="fa-solid fa-circle-half-stroke text-lg"></i>
             </button>
         </div>
         
         <!-- Event Tabs -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto gap-6 py-3 scrollbar-hide border-t border-neutral-100 dark:border-neutral-900 mt-2">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto gap-6 py-3 scrollbar-hide mt-2">
             {% for event in client.events %}
                 <button onclick="loadEvent('{{ event.event_id }}', '{{ event.folder_id }}', this)" 
                         class="event-tab text-xs font-mono uppercase tracking-widest whitespace-nowrap pb-1 border-b-2 border-transparent text-neutral-500 hover:text-black dark:hover:text-white transition-colors"
@@ -58,43 +67,78 @@
             <!-- Images injected here via JS -->
         </div>
         
-        <!-- Loading Sentinel for Intersection Observer (Infinite Scroll) -->
+        <!-- Loading Sentinel for Intersection Observer -->
         <div id="loading-sentinel" class="w-full text-center py-10 hidden">
             <i class="fa-solid fa-circle-notch fa-spin text-2xl text-neutral-400"></i>
             <p class="text-[10px] font-mono tracking-widest uppercase text-neutral-500 mt-3">Fetching Archives</p>
         </div>
     </main>
 
-<!-- Floating Action Bar for Selections -->
+    <!-- Floating Action Bar for Selections -->
     <div id="action-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-black dark:bg-white text-white dark:text-black px-6 py-4 flex items-center gap-6 shadow-2xl translate-y-24 transition-transform duration-500 z-40 w-[90%] md:w-auto justify-between md:justify-start">
         <div class="text-xs font-mono uppercase tracking-widest flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
             <span>Selected: <span id="selection-count" class="font-bold text-lg">0</span></span>
         </div>
         <div class="flex gap-2">
             <button onclick="saveSelections()" id="save-btn" class="bg-neutral-800 dark:bg-neutral-200 text-white dark:text-black text-[10px] font-mono uppercase tracking-widest px-4 py-3 hover:bg-neutral-700 dark:hover:bg-neutral-300 transition">
-                Save
+                Save Progress
             </button>
-            <button onclick="submitFinalSelection()" id="submit-btn" class="bg-green-600 text-white text-[10px] font-mono uppercase tracking-widest px-4 py-3 hover:bg-green-500 transition shadow-lg">
-                Submit Final
+            <!-- Changed to open the review modal -->
+            <button onclick="openReviewModal()" id="review-btn" class="bg-green-600 text-white text-[10px] font-mono uppercase tracking-widest px-4 py-3 hover:bg-green-500 transition shadow-lg">
+                Review & Submit
             </button>
         </div>
     </div>
 
-    <!-- Lightbox Modal -->
+    <!-- Review & Filtration Modal -->
+    <div id="review-modal" class="fixed inset-0 bg-neutral-50/95 dark:bg-neutral-950/95 z-50 hidden flex-col transition-colors duration-300 overflow-y-auto backdrop-blur-sm">
+        <div class="max-w-7xl mx-auto w-full px-4 py-8">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 border-b border-neutral-200 dark:border-neutral-800 pb-6 gap-4">
+                <div>
+                    <h2 class="text-3xl font-serif font-bold text-black dark:text-white">Review Selections</h2>
+                    <p class="text-xs font-mono uppercase text-neutral-500 mt-2">Total Selected: <span id="review-count-display" class="text-black dark:text-white font-bold text-sm">0</span></p>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="closeReviewModal()" class="text-xs font-mono uppercase tracking-widest border border-neutral-300 dark:border-neutral-700 text-black dark:text-white px-6 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">
+                        Back to Gallery
+                    </button>
+                    <button onclick="confirmAndSubmit()" id="final-submit-btn" class="text-xs font-mono uppercase tracking-widest bg-green-600 text-white px-6 py-3 hover:bg-green-500 transition shadow-lg">
+                        Confirm & Submit
+                    </button>
+                </div>
+            </div>
+            <div id="review-gallery-grid" class="masonry-grid">
+                <!-- Selected image thumbnails injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox Modal (Updated) -->
     <div id="lightbox" class="fixed inset-0 bg-neutral-50/95 dark:bg-neutral-950/95 z-50 hidden flex-col items-center justify-center transition-colors duration-300">
-        <div class="absolute top-6 right-6 flex gap-6">
-            <span id="lightbox-counter" class="text-xs font-mono tracking-widest uppercase text-neutral-500 mt-1"></span>
-            <button onclick="toggleZoom()" class="text-neutral-500 hover:text-black dark:hover:text-white"><i class="fa-solid fa-magnifying-glass-plus text-xl"></i></button>
-            <button onclick="closeLightbox()" class="text-neutral-500 hover:text-black dark:hover:text-white"><i class="fa-solid fa-xmark text-2xl"></i></button>
+        <!-- Top Right Controls -->
+        <div class="absolute top-6 right-6 flex items-center gap-6 z-10">
+            <span id="lightbox-counter" class="text-xs font-mono tracking-widest uppercase text-neutral-500 mt-1 hidden sm:block"></span>
+            
+            <!-- Lightbox Select Button -->
+            <button id="lightbox-select-btn" onclick="toggleLightboxSelection()" class="border px-4 py-2 text-xs font-mono uppercase tracking-widest transition-colors flex items-center gap-2">
+                <i class="fa-solid fa-check"></i> <span id="lightbox-select-text">Select</span>
+            </button>
+
+            <button onclick="toggleZoom()" class="text-neutral-500 hover:text-black dark:hover:text-white transition"><i class="fa-solid fa-magnifying-glass-plus text-xl"></i></button>
+            <button onclick="closeLightbox()" class="text-neutral-500 hover:text-black dark:hover:text-white transition"><i class="fa-solid fa-xmark text-2xl"></i></button>
         </div>
         
-        <button onclick="prevImage()" class="absolute left-6 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black dark:hover:text-white text-3xl p-4"><i class="fa-solid fa-angle-left"></i></button>
+        <button onclick="prevImage()" class="absolute left-6 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black dark:hover:text-white transition text-3xl p-4 z-10"><i class="fa-solid fa-angle-left"></i></button>
         
-        <div class="w-full h-full max-w-5xl max-h-[85vh] flex items-center justify-center p-4 overflow-auto">
-            <img id="lightbox-img" src="" alt="Full Preview" class="max-w-full max-h-full object-contain cursor-zoom-in transition-transform duration-300" onclick="toggleZoom()">
+        <!-- Image & Watermark Container -->
+        <div class="w-full h-full max-w-5xl max-h-[85vh] flex items-center justify-center p-4 overflow-auto relative">
+            <div class="relative inline-block max-w-full max-h-full">
+                <img id="lightbox-img" src="" alt="Full Preview" class="max-w-full max-h-full object-contain cursor-zoom-in transition-transform duration-300" onclick="toggleZoom()">
+            
+            </div>
         </div>
         
-        <button onclick="nextImage()" class="absolute right-6 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black dark:hover:text-white text-3xl p-4"><i class="fa-solid fa-angle-right"></i></button>
+        <button onclick="nextImage()" class="absolute right-6 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black dark:hover:text-white transition text-3xl p-4 z-10"><i class="fa-solid fa-angle-right"></i></button>
     </div>
 
     <script>
@@ -103,8 +147,10 @@
         let currentFolderId = null;
         let nextPageToken = null;
         let isLoading = false;
+        
         let selectedFileIds = new Set();
         let currentImages = []; // Stores current grid images for lightbox navigation
+        let allFetchedImagesMap = new Map(); // Global memory map for Review Modal
         let currentLightboxIndex = 0;
 
         // Intersection Observer for Infinite Pagination
@@ -112,19 +158,18 @@
             if (entries[0].isIntersecting && nextPageToken && !isLoading) {
                 fetchImages(currentFolderId, nextPageToken);
             }
-        }, { rootMargin: '200px' }); // Trigger fetch 200px before bottom
+        }, { rootMargin: '200px' });
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Auto-load first event tab if exists
             const firstTab = document.querySelector('.event-tab');
             if (firstTab) firstTab.click();
             
-            // Keyboard nav for lightbox
             document.addEventListener('keydown', (e) => {
-                if (document.getElementById('lightbox').classList.contains('hidden')) return;
-                if (e.key === 'Escape') closeLightbox();
-                if (e.key === 'ArrowRight') nextImage();
-                if (e.key === 'ArrowLeft') prevImage();
+                if (!document.getElementById('lightbox').classList.contains('hidden')) {
+                    if (e.key === 'Escape') closeLightbox();
+                    if (e.key === 'ArrowRight') nextImage();
+                    if (e.key === 'ArrowLeft') prevImage();
+                }
             });
         });
 
@@ -145,11 +190,12 @@
             nextPageToken = null;
             currentImages = [];
             
-            // Fetch saved selections from DB first
             try {
                 const res = await fetch(`/api/selections/${specialId}/${eventId}`);
                 const data = await res.json();
-                selectedFileIds = new Set(data.selected_ids || []);
+                
+                // Add DB selections to global set safely without overwriting other tabs' selections
+                (data.selected_ids || []).forEach(id => selectedFileIds.add(id));
                 updateActionBar();
             } catch (err) {
                 console.error("Failed to load selections", err);
@@ -169,6 +215,9 @@
                 const response = await fetch(url);
                 const data = await response.json();
                 
+                // Store in global memory for the Review Modal
+                data.images.forEach(img => allFetchedImagesMap.set(img.id, img));
+                
                 nextPageToken = data.next_page_token;
                 renderGrid(data.images);
                 
@@ -187,10 +236,9 @@
 
         function renderGrid(images) {
             const grid = document.getElementById('gallery-grid');
-            images.forEach((img, index) => {
+            images.forEach((img) => {
                 const globalIndex = currentImages.length;
                 currentImages.push(img);
-                
                 const isSelected = selectedFileIds.has(img.id);
                 
                 const card = document.createElement('div');
@@ -201,7 +249,7 @@
                          class="w-full h-full object-cover cursor-pointer transition-transform duration-700 group-hover:scale-105" 
                          onclick="openLightbox(${globalIndex})">
                     <div class="absolute top-3 right-3 z-10">
-                        <button onclick="toggleSelection('${img.id}', this)" class="w-8 h-8 flex items-center justify-center border-2 transition-all ${isSelected ? 'bg-black border-black text-white dark:bg-white dark:border-white dark:text-black' : 'border-white/70 bg-black/20 text-transparent hover:border-white'}">
+                        <button data-file-id="${img.id}" onclick="toggleGridSelection('${img.id}')" class="w-8 h-8 flex items-center justify-center border-2 transition-all ${isSelected ? 'bg-black border-black text-white dark:bg-white dark:border-white dark:text-black' : 'border-white/70 bg-black/20 text-transparent hover:border-white'}">
                             <i class="fa-solid fa-check text-sm"></i>
                         </button>
                     </div>
@@ -210,13 +258,22 @@
             });
         }
 
-        function toggleSelection(fileId, btnElement) {
+        // Selection Central Function
+        function toggleGridSelection(fileId) {
             if (selectedFileIds.has(fileId)) {
                 selectedFileIds.delete(fileId);
-                btnElement.className = "w-8 h-8 flex items-center justify-center border-2 border-white/70 bg-black/20 text-transparent hover:border-white transition-all";
             } else {
                 selectedFileIds.add(fileId);
-                btnElement.className = "w-8 h-8 flex items-center justify-center border-2 bg-black border-black text-white dark:bg-white dark:border-white dark:text-black transition-all";
+            }
+            
+            // Sync visual button state in the main grid
+            const btnElement = document.querySelector(`button[data-file-id="${fileId}"]`);
+            if(btnElement) {
+                if (selectedFileIds.has(fileId)) {
+                    btnElement.className = "w-8 h-8 flex items-center justify-center border-2 bg-black border-black text-white dark:bg-white dark:border-white dark:text-black transition-all";
+                } else {
+                    btnElement.className = "w-8 h-8 flex items-center justify-center border-2 border-white/70 bg-black/20 text-transparent hover:border-white transition-all";
+                }
             }
             updateActionBar();
         }
@@ -227,16 +284,15 @@
             const bar = document.getElementById('action-bar');
             
             if (count > 0) {
-                bar.classList.remove('translate-y-24'); // Show bar
+                bar.classList.remove('translate-y-24');
             } else {
-                bar.classList.add('translate-y-24'); // Hide bar
+                bar.classList.add('translate-y-24');
             }
         }
 
         async function saveSelections() {
             const btn = document.getElementById('save-btn');
             btn.innerText = "SAVING...";
-            
             try {
                 const response = await fetch('/api/selections/save', {
                     method: 'POST',
@@ -247,14 +303,12 @@
                         selected_ids: Array.from(selectedFileIds)
                     })
                 });
-                
                 if (response.ok) {
                     btn.innerText = "SAVED!";
                     setTimeout(() => { btn.innerText = "Save Progress"; }, 2000);
                 }
             } catch (error) {
                 btn.innerText = "ERROR";
-                console.error(error);
             }
         }
 
@@ -264,17 +318,40 @@
             const imgData = currentImages[index];
             const imgEl = document.getElementById('lightbox-img');
             
-            imgEl.src = imgData.thumbnail; // Load low-res first instantly
-            
-            // Swap to full res in background
+            imgEl.src = imgData.thumbnail; 
             const fullImage = new Image();
             fullImage.src = imgData.full;
             fullImage.onload = () => { if(currentLightboxIndex === index) imgEl.src = imgData.full; };
 
             document.getElementById('lightbox-counter').innerText = `${index + 1} / ${currentImages.length}`;
+            
+            // Sync Lightbox Select Button State
+            updateLightboxSelectBtn(imgData.id);
+
             document.getElementById('lightbox').classList.remove('hidden');
             document.getElementById('lightbox').classList.add('flex');
-            document.body.style.overflow = 'hidden'; // Prevent background scroll
+            document.body.style.overflow = 'hidden'; 
+        }
+
+        function toggleLightboxSelection() {
+            const imgId = currentImages[currentLightboxIndex].id;
+            toggleGridSelection(imgId); // Reuse the core selection logic
+            updateLightboxSelectBtn(imgId); // Sync the lightbox UI visually
+        }
+
+        function updateLightboxSelectBtn(fileId) {
+            const btn = document.getElementById('lightbox-select-btn');
+            const text = document.getElementById('lightbox-select-text');
+            
+            if (selectedFileIds.has(fileId)) {
+                btn.classList.add('bg-black', 'text-white', 'dark:bg-white', 'dark:text-black', 'border-black', 'dark:border-white');
+                btn.classList.remove('text-neutral-500', 'border-neutral-500');
+                text.innerText = "Selected";
+            } else {
+                btn.classList.remove('bg-black', 'text-white', 'dark:bg-white', 'dark:text-black', 'border-black', 'dark:border-white');
+                btn.classList.add('text-neutral-500', 'border-neutral-500');
+                text.innerText = "Select";
+            }
         }
 
         function closeLightbox() {
@@ -299,8 +376,7 @@
         }
 
         function toggleZoom() {
-            const img = document.getElementById('lightbox-img');
-            img.classList.toggle('zoom-active');
+            document.getElementById('lightbox-img').classList.toggle('zoom-active');
         }
 
         function toggleTheme() {
@@ -308,21 +384,72 @@
             localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
         }
 
-        // Add this new function to your <script> block
-        async function submitFinalSelection() {
-            if(!confirm("Are you sure you are done? This will notify the photographer.")) return;
+        // --- Review & Submission Modal ---
+        function openReviewModal() {
+            const count = selectedFileIds.size;
+            if (count === 0) {
+                alert("Please select at least one image before submitting.");
+                return;
+            }
+
+            document.getElementById('review-count-display').innerText = count;
+            const reviewGrid = document.getElementById('review-gallery-grid');
+            reviewGrid.innerHTML = ''; // Clear previous
+
+            // Extract selected images from our global fetched memory map
+            const selectedImages = [];
+            selectedFileIds.forEach(id => {
+                if(allFetchedImagesMap.has(id)) {
+                    selectedImages.push(allFetchedImagesMap.get(id));
+                }
+            });
+
+            // Build grid
+            selectedImages.forEach(img => {
+                const card = document.createElement('div');
+                card.className = "relative aspect-[4/5] bg-neutral-200 dark:bg-neutral-800 overflow-hidden group";
+                card.innerHTML = `
+                    <img src="${img.thumbnail}" class="w-full h-full object-cover">
+                    <!-- Overlay Unselect Option for Review Grid -->
+                    <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button onclick="removeFromReview('${img.id}', this.parentElement.parentElement)" class="bg-red-600 text-white text-[10px] font-mono tracking-widest uppercase px-4 py-2 hover:bg-red-500 transition">Remove</button>
+                    </div>
+                `;
+                reviewGrid.appendChild(card);
+            });
+
+            document.getElementById('review-modal').classList.remove('hidden');
+            document.getElementById('review-modal').classList.add('flex');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function removeFromReview(fileId, cardElement) {
+            toggleGridSelection(fileId); // Deselect
+            cardElement.remove(); // Remove visually from modal
+            document.getElementById('review-count-display').innerText = selectedFileIds.size; // Update Modal Counter
+            if (selectedFileIds.size === 0) {
+                closeReviewModal(); // Auto close if they empty the list
+            }
+        }
+
+        function closeReviewModal() {
+            document.getElementById('review-modal').classList.add('hidden');
+            document.getElementById('review-modal').classList.remove('flex');
+            document.body.style.overflow = '';
+        }
+
+        async function confirmAndSubmit() {
+            if(!confirm("Are you ready to send these final selections to the photographer?")) return;
             
-            const btn = document.getElementById('submit-btn');
+            const btn = document.getElementById('final-submit-btn');
             btn.innerText = "SUBMITTING...";
             
-            // Auto-save first
             await fetch('/api/selections/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ special_id: specialId, event_id: currentEventId, selected_ids: Array.from(selectedFileIds) })
             });
 
-            // Mark completed
             try {
                 const response = await fetch('/api/selections/complete', {
                     method: 'POST',
@@ -333,9 +460,16 @@
                 if (response.ok) {
                     btn.innerText = "COMPLETED ✓";
                     btn.classList.remove('bg-green-600', 'hover:bg-green-500');
-                    btn.classList.add('bg-black', 'dark:bg-white', 'opacity-50', 'cursor-not-allowed');
+                    btn.classList.add('bg-neutral-800', 'dark:bg-neutral-200', 'opacity-50', 'cursor-not-allowed');
                     btn.disabled = true;
                     alert("Thank you! Your final selections have been sent to the photographer.");
+                    closeReviewModal();
+                    
+                    // Also disable original button
+                    const originBtn = document.getElementById('review-btn');
+                    originBtn.innerText = "COMPLETED ✓";
+                    originBtn.disabled = true;
+                    originBtn.classList.add('opacity-50', 'cursor-not-allowed');
                 }
             } catch (error) {
                 btn.innerText = "ERROR";
