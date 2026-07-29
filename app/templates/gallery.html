@@ -84,12 +84,10 @@
     <div id="action-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-black dark:bg-white text-white dark:text-black px-6 py-4 flex items-center gap-6 shadow-2xl translate-y-24 transition-transform duration-500 z-40 w-[90%] md:w-auto justify-between md:justify-start">
         <div class="text-xs font-mono uppercase tracking-widest flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
             <span>Selected: <span id="selection-count" class="font-bold text-lg">0</span></span>
+            <!-- NEW: Auto-save status indicator -->
+            <span id="save-status" class="text-[9px] text-neutral-400 opacity-0 transition-opacity duration-300">Saved ✓</span>
         </div>
         <div class="flex gap-2">
-            <button onclick="saveSelections()" id="save-btn" class="bg-neutral-800 dark:bg-neutral-200 text-white dark:text-black text-[10px] font-mono uppercase tracking-widest px-4 py-3 hover:bg-neutral-700 dark:hover:bg-neutral-300 transition">
-                Save Progress
-            </button>
-            <!-- Changed to open the review modal -->
             <button onclick="openReviewModal()" id="review-btn" class="bg-green-600 text-white text-[10px] font-mono uppercase tracking-widest px-4 py-3 hover:bg-green-500 transition shadow-lg">
                 Review & Submit
             </button>
@@ -119,10 +117,10 @@
         </div>
     </div>
 
-<!-- Lightbox Modal (Updated) -->
+    <!-- Lightbox Modal (Updated) -->
     <div id="lightbox" class="fixed inset-0 bg-neutral-50/95 dark:bg-neutral-950/95 z-50 hidden flex-col items-center justify-center transition-colors duration-300">
         
-        <!-- NEW: Top Left File Name Display -->
+        <!-- Top Left File Name Display -->
         <div class="absolute top-6 left-6 z-10 flex items-center bg-white/50 dark:bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-800">
             <i class="fa-regular fa-image text-neutral-500 mr-2 text-xs"></i>
             <span id="lightbox-filename" class="text-xs font-mono tracking-widest uppercase text-black dark:text-white font-bold"></span>
@@ -169,6 +167,7 @@
         let currentImages = []; // Stores current grid images for lightbox navigation
         let allFetchedImagesMap = new Map(); // Global memory map for Review Modal
         let currentLightboxIndex = 0;
+        let autoSaveTimeout = null; // Used for debouncing auto-save
 
         // Intersection Observer for Infinite Pagination
         const observer = new IntersectionObserver((entries) => {
@@ -293,6 +292,9 @@
                 }
             }
             updateActionBar();
+            
+            // Trigger auto-save immediately after DOM updates
+            triggerAutoSave();
         }
 
         function updateActionBar() {
@@ -315,29 +317,45 @@
                 bar.classList.add('translate-y-24');
             }
         }
-        async function saveSelections() {
-            const btn = document.getElementById('save-btn');
-            btn.innerText = "SAVING...";
-            try {
-                const response = await fetch('/api/selections/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        special_id: specialId,
-                        event_id: currentEventId,
-                        selected_ids: Array.from(selectedFileIds)
-                    })
-                });
-                if (response.ok) {
-                    btn.innerText = "SAVED!";
-                    setTimeout(() => { btn.innerText = "Save Progress"; }, 2000);
-                }
-            } catch (error) {
-                btn.innerText = "ERROR";
+
+        // Debounced Auto Save Function
+        function triggerAutoSave() {
+            const statusEl = document.getElementById('save-status');
+            if (statusEl) {
+                statusEl.innerText = "Saving...";
+                statusEl.classList.remove('opacity-0');
             }
+
+            // Clear previous timeout to debounce rapid clicks
+            if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+
+            autoSaveTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch('/api/selections/save', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            special_id: specialId,
+                            event_id: currentEventId,
+                            selected_ids: Array.from(selectedFileIds)
+                        })
+                    });
+                    
+                    if (response.ok && statusEl) {
+                        statusEl.innerText = "Saved ✓";
+                        // Fade out the success message after 2 seconds
+                        setTimeout(() => {
+                            statusEl.classList.add('opacity-0');
+                        }, 2000);
+                    }
+                } catch (error) {
+                    if (statusEl) statusEl.innerText = "Error Saving";
+                    console.error("Auto-save failed", error);
+                }
+            }, 500); // 500ms delay
         }
 
-       function openLightbox(index) {
+        function openLightbox(index) {
             currentLightboxIndex = index;
             const imgData = currentImages[index];
             const imgEl = document.getElementById('lightbox-img');
@@ -349,7 +367,7 @@
 
             document.getElementById('lightbox-counter').innerText = `${index + 1} / ${currentImages.length}`;
             
-            // NEW: Inject the filename into the top-left display
+            // Inject the filename into the top-left display
             document.getElementById('lightbox-filename').innerText = imgData.name;
             
             // Sync Lightbox Select Button State
@@ -362,7 +380,7 @@
 
         function toggleLightboxSelection() {
             const imgId = currentImages[currentLightboxIndex].id;
-            toggleGridSelection(imgId); // Reuse the core selection logic
+            toggleGridSelection(imgId); // Reuse the core selection logic (which triggers auto-save)
             updateLightboxSelectBtn(imgId); // Sync the lightbox UI visually
         }
 
@@ -451,7 +469,7 @@
         }
 
         function removeFromReview(fileId, cardElement) {
-            toggleGridSelection(fileId); // Deselect
+            toggleGridSelection(fileId); // Deselect (which triggers auto-save)
             cardElement.remove(); // Remove visually from modal
             document.getElementById('review-count-display').innerText = selectedFileIds.size; // Update Modal Counter
             if (selectedFileIds.size === 0) {
@@ -471,6 +489,7 @@
             const btn = document.getElementById('final-submit-btn');
             btn.innerText = "SUBMITTING...";
             
+            // Execute one final explicit save to ensure backend is fully synced before marking complete
             await fetch('/api/selections/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
