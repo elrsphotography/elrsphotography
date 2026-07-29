@@ -142,10 +142,10 @@
         </div>
     </div>
 
-    <!-- ==========================================
+   <!-- ==========================================
          2. EDITORIAL HERO SECTION
     =========================================== -->
-    <section id="home" class="relative h-screen min-h-[800px] flex items-center justify-center overflow-hidden">
+    <section id="home" class="relative h-screen min-h-[700px] md:min-h-[800px] flex items-center justify-center overflow-hidden">
         
         <!-- Hero Background Images (Responsive) -->
         <div class="absolute inset-0 z-0 bg-mono-black">
@@ -165,24 +165,28 @@
             <div class="absolute inset-0 bg-gradient-to-r from-mono-black/60 via-transparent to-mono-black/60"></div>
         </div>
 
-        <div class="relative z-10 w-full max-w-7xl mx-auto px-6 flex flex-col justify-center h-full mt-10">
+        <!-- Layout Container: justify-between on mobile, justify-center on desktop -->
+        <div class="relative z-10 w-full max-w-7xl mx-auto px-6 flex flex-col justify-between md:justify-center h-full pt-32 pb-16 md:py-0 md:mt-10">
             
-            <!-- Location Badge (Magazine Style) -->
-            <div class="flex items-center gap-4 mb-8 opacity-0 translate-y-4 animate-fade-up" style="animation: fadeUp 1s forwards 0.2s;">
-                <span class="w-12 h-[1px] bg-mono-white"></span>
-                <p class="text-mono-white text-xs tracking-widest-xl uppercase font-light">
-                    EST. 2026 • Ambasamudram, Tirunelveli
-                </p>
+            <!-- TOP GROUP (Badge & Title) -->
+            <div>
+                <!-- Location Badge (Magazine Style) -->
+                <div class="flex items-center gap-4 mb-6 md:mb-8 opacity-0 translate-y-4 animate-fade-up" style="animation: fadeUp 1s forwards 0.2s;">
+                    <span class="w-12 h-[1px] bg-mono-white"></span>
+                    <p class="text-mono-white text-xs tracking-widest-xl uppercase font-light">
+                        EST. 2026 • Ambasamudram, Tirunelveli
+                    </p>
+                </div>
+
+                <!-- Main Title -->
+                <h1 class="text-6xl md:text-8xl lg:text-[10rem] font-serif font-bold text-mono-white leading-[0.85] tracking-tighter opacity-0 translate-y-8" style="animation: fadeUp 1s forwards 0.4s;">
+                    ELRS <br>
+                    <span class="italic text-mono-300 font-light ml-0 md:ml-20">Photography.</span>
+                </h1>
             </div>
 
-            <!-- Main Title -->
-            <h1 class="text-6xl md:text-8xl lg:text-[10rem] font-serif font-bold text-mono-white leading-[0.85] tracking-tighter opacity-0 translate-y-8" style="animation: fadeUp 1s forwards 0.4s;">
-                ELRS <br>
-                <span class="italic text-mono-300 font-light ml-0 md:ml-20">Photography.</span>
-            </h1>
-
-            <!-- Subtext and Call to Action -->
-            <div class="mt-16 md:mt-24 grid grid-cols-1 md:grid-cols-3 gap-8 items-end opacity-0 translate-y-4" style="animation: fadeUp 1s forwards 0.6s;">
+            <!-- BOTTOM GROUP (Subtext and Call to Action) -->
+            <div class="mt-auto md:mt-24 grid grid-cols-1 md:grid-cols-3 gap-8 items-end opacity-0 translate-y-4" style="animation: fadeUp 1s forwards 0.6s;">
                 
                 <!-- Empty column for layout balance on desktop -->
                 <div class="hidden md:block">
@@ -206,6 +210,7 @@
                     </a>
                 </div>
             </div>
+            
         </div>
     </section>
 
