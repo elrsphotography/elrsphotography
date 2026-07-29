@@ -147,11 +147,19 @@
     =========================================== -->
     <section id="home" class="relative h-screen min-h-[800px] flex items-center justify-center overflow-hidden">
         
-        <!-- Hero Background Image (Black & White, high contrast) -->
+        <!-- Hero Background Images (Responsive) -->
         <div class="absolute inset-0 z-0 bg-mono-black">
-            <img id="hero-img" src="static/uploads/bg.jpeg" 
-                 alt="Camera Lens Aesthetic" 
-                 class="w-full h-full object-cover opacity-80 grayscale contrast-125 scale-105 transition-transform duration-[2s]">
+            
+            <!-- Mobile Image (Hidden on medium screens and larger) -->
+            <img src="{{ url_for('static', filename='uploads/bg1.jpeg') }}" 
+                 alt="ELRS Photography Founders Mobile" 
+                 class="block md:hidden w-full h-full object-cover opacity-80 grayscale contrast-125 scale-105 transition-transform duration-[2s]">
+                 
+            <!-- Desktop Image (Visible only on medium screens and larger) -->
+            <img src="{{ url_for('static', filename='uploads/bg.jpeg') }}" 
+                 alt="ELRS Photography Founders Desktop" 
+                 class="hidden md:block w-full h-full object-cover opacity-80 grayscale contrast-125 scale-105 transition-transform duration-[2s]">
+            
             <!-- Gradient overlays to ensure text readability -->
             <div class="absolute inset-0 bg-gradient-to-b from-mono-black/40 via-transparent to-mono-black"></div>
             <div class="absolute inset-0 bg-gradient-to-r from-mono-black/60 via-transparent to-mono-black/60"></div>
@@ -200,7 +208,6 @@
             </div>
         </div>
     </section>
-
 
 
 <!-- ==========================================
