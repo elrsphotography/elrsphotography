@@ -113,12 +113,20 @@
         </div>
     </div>
 
-    <!-- Lightbox Modal (Updated) -->
+<!-- Lightbox Modal (Updated) -->
     <div id="lightbox" class="fixed inset-0 bg-neutral-50/95 dark:bg-neutral-950/95 z-50 hidden flex-col items-center justify-center transition-colors duration-300">
+        
+        <!-- NEW: Top Left File Name Display -->
+        <div class="absolute top-6 left-6 z-10 flex items-center bg-white/50 dark:bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-800">
+            <i class="fa-regular fa-image text-neutral-500 mr-2 text-xs"></i>
+            <span id="lightbox-filename" class="text-xs font-mono tracking-widest uppercase text-black dark:text-white font-bold"></span>
+        </div>
+
         <!-- Top Right Controls -->
         <div class="absolute top-6 right-6 flex items-center gap-6 z-10">
             <span id="lightbox-counter" class="text-xs font-mono tracking-widest uppercase text-neutral-500 mt-1 hidden sm:block"></span>
-            <!-- NEW: Total Selected Counter -->
+            
+            <!-- Total Selected Counter -->
             <span class="text-[10px] font-mono tracking-widest uppercase text-neutral-500 mt-1 hidden sm:block border-r border-neutral-300 dark:border-neutral-700 pr-6">
                 Total: <span id="lightbox-total-count" class="text-black dark:text-white font-bold text-xs">0</span>
             </span>
@@ -138,7 +146,6 @@
         <div class="w-full h-full max-w-5xl max-h-[85vh] flex items-center justify-center p-4 overflow-auto relative">
             <div class="relative inline-block max-w-full max-h-full">
                 <img id="lightbox-img" src="" alt="Full Preview" class="max-w-full max-h-full object-contain cursor-zoom-in transition-transform duration-300" onclick="toggleZoom()">
-            
             </div>
         </div>
         
@@ -324,8 +331,7 @@
             }
         }
 
-        // --- Lightbox Functions ---
-        function openLightbox(index) {
+       function openLightbox(index) {
             currentLightboxIndex = index;
             const imgData = currentImages[index];
             const imgEl = document.getElementById('lightbox-img');
@@ -336,6 +342,9 @@
             fullImage.onload = () => { if(currentLightboxIndex === index) imgEl.src = imgData.full; };
 
             document.getElementById('lightbox-counter').innerText = `${index + 1} / ${currentImages.length}`;
+            
+            // NEW: Inject the filename into the top-left display
+            document.getElementById('lightbox-filename').innerText = imgData.name;
             
             // Sync Lightbox Select Button State
             updateLightboxSelectBtn(imgData.id);
