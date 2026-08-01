@@ -127,6 +127,17 @@
             <i class="fa-regular fa-image text-neutral-500 mr-2 text-xs"></i>
             <span id="lightbox-filename" class="text-xs font-mono tracking-widest uppercase text-black dark:text-white font-bold"></span>
         </div>
+        <!-- NEW: Folder Name & Live Counts -->
+            <div class="flex items-center gap-2 md:border-l md:border-neutral-300 dark:md:border-neutral-700 md:pl-3">
+                <span id="lightbox-folder-name" class="text-[10px] font-mono tracking-widest uppercase text-neutral-600 dark:text-neutral-400 font-bold truncate max-w-[100px] md:max-w-none"></span>
+                <span class="text-[10px] font-mono tracking-widest uppercase text-neutral-500 bg-neutral-200 dark:bg-neutral-800 px-2 py-0.5 rounded">
+                    Folder: <span id="lightbox-folder-count" class="font-bold text-black dark:text-white">0</span>
+                </span>
+                <span class="text-[10px] font-mono tracking-widest uppercase text-neutral-500 bg-neutral-200 dark:bg-neutral-800 px-2 py-0.5 rounded">
+                    Overall: <span id="lightbox-grand-total" class="font-bold text-black dark:text-white">0</span>
+                </span>
+            </div>
+    </div>   
 
         <div class="absolute top-6 right-6 flex items-center gap-6 z-10">
             <span id="lightbox-counter" class="text-xs font-mono tracking-widest uppercase text-neutral-500 mt-1 hidden sm:block"></span>
@@ -359,6 +370,15 @@
             // Update Review Page count
             const reviewCountEl = document.getElementById('review-count-display');
             if(reviewCountEl) reviewCountEl.innerText = grandTotal;
+            // NEW: Push live updates to Lightbox if it is open
+            const lbFolderCountEl = document.getElementById('lightbox-folder-count');
+            const lbGrandTotalEl = document.getElementById('lightbox-grand-total');
+            if (lbFolderCountEl && currentEventId && selectedFileIdsByEvent[currentEventId]) {
+                lbFolderCountEl.innerText = selectedFileIdsByEvent[currentEventId].size;
+            }
+            if (lbGrandTotalEl) {
+                lbGrandTotalEl.innerText = grandTotal;
+            }
         }
 
         function triggerAutoSave(evtId) {
@@ -405,8 +425,11 @@
 
             document.getElementById('lightbox-counter').innerText = `${index + 1} / ${currentImages.length}`;
             document.getElementById('lightbox-filename').innerText = imgData.name;
+            // NEW: Set the folder name
+            document.getElementById('lightbox-folder-name').innerText = currentEventName;
             
             updateLightboxSelectBtn(imgData.id);
+            updateAllCounters();
 
             document.getElementById('lightbox').classList.remove('hidden');
             document.getElementById('lightbox').classList.add('flex');
@@ -522,6 +545,7 @@
                 // Render the batches
                 for (const event of eventsData) {
                     if (!event.images || event.images.length === 0) continue;
+                    event.images.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
                     
                     const section = document.createElement('div');
                     section.className = "mb-12";

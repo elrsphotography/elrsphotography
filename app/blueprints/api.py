@@ -127,6 +127,8 @@ def get_selection_details(special_id):
             except Exception as e:
                 print(f"Failed to fetch folder {folder_id}: {e}")
                 break
+            
+        event_images = sorted(event_images, key=lambda x: x["name"])
 
         events_data.append({
             "event_id": event_id,
