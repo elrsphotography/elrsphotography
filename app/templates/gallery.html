@@ -163,6 +163,7 @@
         let currentImages = []; 
         let currentLightboxIndex = 0;
         let autoSaveTimeout = null; 
+        let allFetchedImagesMap = new Map();
         
         // NEW: AbortController to kill requests when tabs are switched quickly
         let fetchAbortController = null;
@@ -252,7 +253,7 @@
             try {
                 const response = await fetch(url, { signal });
                 const data = await response.json();
-                
+                data.images.forEach(img => allFetchedImagesMap.set(img.id, img));                
                 nextPageToken = data.next_page_token;
                 renderGrid(data.images);
                 
@@ -460,13 +461,12 @@
             document.documentElement.classList.toggle('dark');
             localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
         }
-
-        // --- FULL PAGE REVIEW LOGIC ---
+// --- FULL PAGE REVIEW LOGIC ---
         async function openReviewPage() {
-            let total = 0;
-            for (const s of Object.values(selectedFileIdsByEvent)) total += s.size;
+            let totalSelected = 0;
+            for (const s of Object.values(selectedFileIdsByEvent)) totalSelected += s.size;
             
-            if (total === 0) {
+            if (totalSelected === 0) {
                 alert("Please select at least one image before reviewing.");
                 return;
             }
@@ -484,22 +484,52 @@
                     <p class="text-xs font-mono tracking-widest uppercase text-neutral-500 mt-4">Compiling your final selections...</p>
                 </div>`;
 
-            // Fetch actual full details for selected images from backend
+            // SMART RENDER LOGIC: Check if we already have all selected images in frontend memory
+            let missingImages = false;
+            for (const selectionSet of Object.values(selectedFileIdsByEvent)) {
+                for (const fileId of selectionSet) {
+                    if (!allFetchedImagesMap.has(fileId)) {
+                        missingImages = true;
+                        break;
+                    }
+                }
+            }
+
+            let eventsData = [];
+
             try {
-                const response = await fetch(`/api/selections/details/${specialId}`);
-                const eventData = await response.json();
+                if (!missingImages) {
+                    // FAST PATH: We already downloaded these! Render instantly from memory.
+                    for (const [evtId, selectionSet] of Object.entries(selectedFileIdsByEvent)) {
+                        if (selectionSet.size === 0) continue;
+                        
+                        // Grab the event name from the tab HTML
+                        const tabBtn = document.querySelector(`.event-tab[data-event-id="${evtId}"]`);
+                        const evtName = tabBtn ? tabBtn.childNodes[0].nodeValue.trim() : "Event";
+                        
+                        const images = Array.from(selectionSet).map(id => allFetchedImagesMap.get(id));
+                        eventsData.push({ event_id: evtId, event_name: evtName, images: images });
+                    }
+                } else {
+                    // SLOW PATH: User refreshed the page. We must fetch the missing URLs from the backend.
+                    const response = await fetch(`/api/selections/details/${specialId}`);
+                    const data = await response.json();
+                    eventsData = data.events;
+                }
                 
-                reviewContent.innerHTML = ''; // Clear loading
+                reviewContent.innerHTML = ''; // Clear loading spinner
                 
-                for (const event of eventData.events) {
-                    if (event.images.length === 0) continue;
+                // Render the batches
+                for (const event of eventsData) {
+                    if (!event.images || event.images.length === 0) continue;
                     
                     const section = document.createElement('div');
                     section.className = "mb-12";
                     
+                    // Added loading="lazy" so rendering 800+ images doesn't freeze the browser
                     let imagesHTML = event.images.map(img => `
                         <div class="relative aspect-[4/5] bg-neutral-200 dark:bg-neutral-800 overflow-hidden group review-card-${img.id}">
-                            <img src="${img.thumbnail}" class="w-full h-full object-cover">
+                            <img src="${img.thumbnail}" loading="lazy" class="w-full h-full object-cover">
                             <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 <button onclick="removeFromReview('${img.id}', '${event.event_id}')" class="bg-red-600 text-white text-[10px] font-mono tracking-widest uppercase px-6 py-3 hover:bg-red-500 transition">Remove</button>
                             </div>
@@ -513,7 +543,8 @@
                     reviewContent.appendChild(section);
                 }
             } catch (e) {
-                reviewContent.innerHTML = `<p class="text-red-500">Failed to load selections. Please try again.</p>`;
+                console.error(e);
+                reviewContent.innerHTML = `<p class="text-red-500 text-center font-mono uppercase text-xs tracking-widest">Failed to load selections. Please try again.</p>`;
             }
         }
 

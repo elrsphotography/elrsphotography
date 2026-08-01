@@ -72,12 +72,12 @@ def get_all_selections(special_id):
         # Matches your DB schema: selected_file_ids
         selections[record["event_id"]] = record.get("selected_file_ids", [])
     return jsonify({"selections": selections})
-
 @api_bp.route("/selections/details/<special_id>", methods=["GET"])
 def get_selection_details(special_id):
     """
-    Optimized: Fetches the actual image metadata for EVERY selected file from Google Drive in BULK.
-    Prevents 502 Gateway Timeouts by grouping requests into chunks of 40.
+    Fetches the actual image metadata for EVERY selected file.
+    Optimized: Bypasses Google Drive query limits by fetching folder pages 
+    and filtering selections locally in memory.
     """
     db = get_db()
     client_data = db["clients"].find_one({"special_id": special_id.strip().upper()})
@@ -89,41 +89,44 @@ def get_selection_details(special_id):
     
     for event in client_data.get("events", []):
         event_id = event["event_id"]
+        folder_id = event.get("folder_id")
+        
         selection_record = db["selections"].find_one({"special_id": special_id, "event_id": event_id})
         selected_ids = selection_record.get("selected_file_ids", []) if selection_record else []
         
-        if not selected_ids:
+        if not selected_ids or not folder_id:
             continue
             
+        selected_set = set(selected_ids)
         event_images = []
         
-        # CHUNKING LOGIC: Group IDs into batches of 40 to avoid URI length limits and 502 Timeouts
-        chunk_size = 40
-        for i in range(0, len(selected_ids), chunk_size):
-            chunk = selected_ids[i:i + chunk_size]
-            
-            # Construct a bulk search query for Google Drive: id='123' or id='456'
-            query_parts = [f"id='{file_id}'" for file_id in chunk]
-            query_string = " or ".join(query_parts)
-            
+        # Fetch ALL files in the folder up to 1000 at a time, then filter in memory
+        page_token = None
+        while True:
             try:
-                # Fetch up to 40 files in a SINGLE request
                 results = drive_service.files().list(
-                    q=query_string,
-                    fields="files(id, name, webContentLink, thumbnailLink)",
-                    pageSize=100
+                    q=f"'{folder_id}' in parents and mimeType contains 'image/' and trashed = false",
+                    fields="nextPageToken, files(id, name, webContentLink, thumbnailLink)",
+                    pageSize=1000,
+                    pageToken=page_token
                 ).execute()
                 
                 files = results.get('files', [])
                 for file in files:
-                    event_images.append({
-                        "id": file.get("id"),
-                        "name": file.get("name"),
-                        "thumbnail": file.get("thumbnailLink", "").replace("s220", "s800") if file.get("thumbnailLink") else "",
-                        "full": file.get("webContentLink", "")
-                    })
+                    if file.get("id") in selected_set:
+                        event_images.append({
+                            "id": file.get("id"),
+                            "name": file.get("name"),
+                            "thumbnail": file.get("thumbnailLink", "").replace("s220", "s800") if file.get("thumbnailLink") else "",
+                            "full": file.get("webContentLink", "")
+                        })
+                
+                page_token = results.get('nextPageToken')
+                if not page_token:
+                    break
             except Exception as e:
-                print(f"Failed to fetch chunk in event {event_id}: {e}")
+                print(f"Failed to fetch folder {folder_id}: {e}")
+                break
 
         events_data.append({
             "event_id": event_id,
