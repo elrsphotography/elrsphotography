@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, current_app
 from pymongo import MongoClient
-from app.services.drive_service import fetch_paginated_images
+from app.services.drive_service import fetch_paginated_images, get_drive_service
 
 api_bp = Blueprint("api", __name__)
 
@@ -57,3 +57,62 @@ def complete_client_selection():
         {"$set": {"selection_status": "COMPLETED"}}
     )
     return jsonify({"status": "success", "message": "Admin notified."})
+
+# ==========================================
+# NEW ROUTES FOR GALLERY & REVIEW PAGE
+# ==========================================
+
+@api_bp.route("/selections/all/<special_id>", methods=["GET"])
+def get_all_selections(special_id):
+    """Returns the selections for all events under a client at once."""
+    db = get_db()
+    selections = {}
+    records = db["selections"].find({"special_id": special_id.strip().upper()})
+    for record in records:
+        # Matches your DB schema: selected_file_ids
+        selections[record["event_id"]] = record.get("selected_file_ids", [])
+    return jsonify({"selections": selections})
+
+@api_bp.route("/selections/details/<special_id>", methods=["GET"])
+def get_selection_details(special_id):
+    """
+    Fetches the actual image metadata for EVERY selected file from Google Drive.
+    This serves the Review page to ensure all selected images are displayed.
+    """
+    db = get_db()
+    client_data = db["clients"].find_one({"special_id": special_id.strip().upper()})
+    if not client_data:
+        return jsonify({"error": "Client not found"}), 404
+
+    drive_service = get_drive_service()
+    events_data = []
+    
+    for event in client_data.get("events", []):
+        event_id = event["event_id"]
+        selection_record = db["selections"].find_one({"special_id": special_id, "event_id": event_id})
+        selected_ids = selection_record.get("selected_file_ids", []) if selection_record else []
+        
+        if not selected_ids:
+            continue
+            
+        event_images = []
+        for file_id in selected_ids:
+            try:
+                # Fetch fields from Drive
+                file = drive_service.files().get(fileId=file_id, fields="id, name, webContentLink, thumbnailLink").execute()
+                event_images.append({
+                    "id": file.get("id"),
+                    "name": file.get("name"),
+                    "thumbnail": file.get("thumbnailLink", "").replace("s220", "s800"),
+                    "full": file.get("webContentLink")
+                })
+            except Exception as e:
+                print(f"Failed to fetch file {file_id}: {e}")
+
+        events_data.append({
+            "event_id": event_id,
+            "event_name": event["event_name"],
+            "images": event_images
+        })
+
+    return jsonify({"events": events_data})

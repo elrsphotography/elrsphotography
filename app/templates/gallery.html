@@ -16,7 +16,6 @@
         }
     </script>
     <style>
-        /* Custom scrollbar for aesthetic */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #525252; border-radius: 10px; }
@@ -26,7 +25,7 @@
 </head>
 <body class="bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 font-sans min-h-screen transition-colors duration-300 pb-24">
 
-    <!-- Header (Updated Layout) -->
+    <!-- Header -->
     <nav class="sticky top-0 z-40 bg-white/90 dark:bg-neutral-950/90 backdrop-blur-md border-b border-neutral-200 dark:border-neutral-800 transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 relative flex items-center justify-between">
             
@@ -47,19 +46,27 @@
                 <p class="text-[10px] font-mono tracking-widest uppercase text-neutral-500 mt-1">Client Archive: {{ client.special_id }}</p>
             </div>
             
-            <!-- Right: Theme Toggle -->
-            <button onclick="toggleTheme()" class="text-neutral-500 hover:text-black dark:hover:text-white transition ml-auto z-10 relative">
-                <i class="fa-solid fa-circle-half-stroke text-lg"></i>
-            </button>
+            <!-- Right: Review Button & Theme Toggle -->
+            <div class="flex items-center gap-4 ml-auto z-10 relative">
+                <!-- NEW: Review Button in Nav -->
+                <button onclick="openReviewPage()" id="nav-review-btn" class="bg-black dark:bg-white text-white dark:text-black text-[10px] font-mono uppercase tracking-widest px-4 py-2 hover:opacity-80 transition shadow-sm flex items-center gap-2">
+                    Review <span id="nav-total-count" class="bg-neutral-800 dark:bg-neutral-200 text-white dark:text-black rounded-full px-2 py-0.5 ml-1">0</span>
+                </button>
+                <button onclick="toggleTheme()" class="text-neutral-500 hover:text-black dark:hover:text-white transition">
+                    <i class="fa-solid fa-circle-half-stroke text-lg"></i>
+                </button>
+            </div>
         </div>
         
-        <!-- Event Tabs -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto gap-6 py-3 scrollbar-hide mt-2">
+        <!-- Event Tabs (Hidden during Review) -->
+        <div id="event-tabs-container" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto gap-6 py-3 scrollbar-hide mt-2 transition-all duration-300">
             {% for event in client.events %}
-                <button onclick="loadEvent('{{ event.event_id }}', '{{ event.folder_id }}', this)" 
-                        class="event-tab text-xs font-mono uppercase tracking-widest whitespace-nowrap pb-1 border-b-2 border-transparent text-neutral-500 hover:text-black dark:hover:text-white transition-colors"
+                <button onclick="loadEvent('{{ event.event_id }}', '{{ event.folder_id }}', this, '{{ event.event_name }}')" 
+                        class="event-tab text-xs font-mono uppercase tracking-widest whitespace-nowrap pb-1 border-b-2 border-transparent text-neutral-500 hover:text-black dark:hover:text-white transition-colors flex items-center gap-2"
                         data-event-id="{{ event.event_id }}">
                     {{ event.event_name }}
+                    <!-- Tab-specific count -->
+                    <span class="tab-count bg-neutral-200 dark:bg-neutral-800 text-[9px] px-1.5 py-0.5 rounded-full hidden" data-count-for="{{ event.event_id }}">0</span>
                 </button>
             {% else %}
                 <span class="text-xs font-mono uppercase text-neutral-500">No events found.</span>
@@ -67,75 +74,63 @@
         </div>
     </nav>
 
-    <!-- Main Gallery Container -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div id="gallery-grid" class="masonry-grid">
-            <!-- Images injected here via JS -->
-        </div>
+    <!-- VIEWS CONTAINER -->
+    <div id="view-container">
         
-        <!-- Loading Sentinel for Intersection Observer -->
-        <div id="loading-sentinel" class="w-full text-center py-10 hidden">
-            <i class="fa-solid fa-circle-notch fa-spin text-2xl text-neutral-400"></i>
-            <p class="text-[10px] font-mono tracking-widest uppercase text-neutral-500 mt-3">Fetching Archives</p>
-        </div>
-    </main>
+        <!-- 1. GALLERY VIEW -->
+        <main id="gallery-view" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 transition-opacity duration-300">
+            <!-- Save Status Indicator -->
+            <div class="flex justify-end mb-4 h-4">
+                <span id="save-status" class="text-[10px] font-mono uppercase tracking-widest text-neutral-400 opacity-0 transition-opacity duration-300 flex items-center gap-1">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Saving...
+                </span>
+            </div>
 
-    <!-- Floating Action Bar for Selections -->
-    <div id="action-bar" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-black dark:bg-white text-white dark:text-black px-6 py-4 flex items-center gap-6 shadow-2xl translate-y-24 transition-transform duration-500 z-40 w-[90%] md:w-auto justify-between md:justify-start">
-        <div class="text-xs font-mono uppercase tracking-widest flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
-            <span>Selected: <span id="selection-count" class="font-bold text-lg">0</span></span>
-            <!-- NEW: Auto-save status indicator -->
-            <span id="save-status" class="text-[9px] text-neutral-400 opacity-0 transition-opacity duration-300">Saved ✓</span>
-        </div>
-        <div class="flex gap-2">
-            <button onclick="openReviewModal()" id="review-btn" class="bg-green-600 text-white text-[10px] font-mono uppercase tracking-widest px-4 py-3 hover:bg-green-500 transition shadow-lg">
-                Review & Submit
-            </button>
-        </div>
-    </div>
+            <div id="gallery-grid" class="masonry-grid">
+                <!-- Images injected here -->
+            </div>
+            
+            <div id="loading-sentinel" class="w-full text-center py-10 hidden">
+                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-neutral-400"></i>
+                <p class="text-[10px] font-mono tracking-widest uppercase text-neutral-500 mt-3">Fetching Archives</p>
+            </div>
+        </main>
 
-    <!-- Review & Filtration Modal -->
-    <div id="review-modal" class="fixed inset-0 bg-neutral-50/95 dark:bg-neutral-950/95 z-50 hidden flex-col transition-colors duration-300 overflow-y-auto backdrop-blur-sm">
-        <div class="max-w-7xl mx-auto w-full px-4 py-8">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 border-b border-neutral-200 dark:border-neutral-800 pb-6 gap-4">
+        <!-- 2. FULL PAGE REVIEW VIEW (Hidden by default) -->
+        <main id="review-view" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 hidden transition-opacity duration-300">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 border-b border-neutral-200 dark:border-neutral-800 pb-6 gap-4">
                 <div>
-                    <h2 class="text-3xl font-serif font-bold text-black dark:text-white">Review Selections</h2>
-                    <p class="text-xs font-mono uppercase text-neutral-500 mt-2">Total Selected: <span id="review-count-display" class="text-black dark:text-white font-bold text-sm">0</span></p>
+                    <h2 class="text-3xl font-serif font-bold text-black dark:text-white flex items-center gap-4">
+                        <button onclick="closeReviewPage()" class="text-neutral-400 hover:text-black dark:hover:text-white transition text-xl"><i class="fa-solid fa-arrow-left"></i></button>
+                        Review Selections
+                    </h2>
+                    <p class="text-xs font-mono uppercase text-neutral-500 mt-2 ml-9">Total Selected: <span id="review-count-display" class="text-black dark:text-white font-bold text-sm">0</span></p>
                 </div>
-                <div class="flex gap-4">
-                    <button onclick="closeReviewModal()" class="text-xs font-mono uppercase tracking-widest border border-neutral-300 dark:border-neutral-700 text-black dark:text-white px-6 py-3 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">
-                        Back to Gallery
-                    </button>
-                    <button onclick="confirmAndSubmit()" id="final-submit-btn" class="text-xs font-mono uppercase tracking-widest bg-green-600 text-white px-6 py-3 hover:bg-green-500 transition shadow-lg">
-                        Confirm & Submit
-                    </button>
+                <button onclick="confirmAndSubmit()" id="final-submit-btn" class="text-xs font-mono uppercase tracking-widest bg-green-600 text-white px-8 py-4 hover:bg-green-500 transition shadow-lg w-full md:w-auto">
+                    Confirm & Submit to Studio
+                </button>
+            </div>
+
+            <!-- Grouped by folders injected here -->
+            <div id="review-content" class="space-y-12">
+                <div class="w-full text-center py-20" id="review-loading">
+                    <i class="fa-solid fa-circle-notch fa-spin text-3xl text-neutral-400"></i>
+                    <p class="text-xs font-mono tracking-widest uppercase text-neutral-500 mt-4">Compiling your selections...</p>
                 </div>
             </div>
-            <div id="review-gallery-grid" class="masonry-grid">
-                <!-- Selected image thumbnails injected here -->
-            </div>
-        </div>
+        </main>
     </div>
 
-    <!-- Lightbox Modal (Updated) -->
+    <!-- Lightbox Modal -->
     <div id="lightbox" class="fixed inset-0 bg-neutral-50/95 dark:bg-neutral-950/95 z-50 hidden flex-col items-center justify-center transition-colors duration-300">
-        
-        <!-- Top Left File Name Display -->
         <div class="absolute top-6 left-6 z-10 flex items-center bg-white/50 dark:bg-black/50 backdrop-blur-md px-3 py-1.5 rounded-md border border-neutral-200 dark:border-neutral-800">
             <i class="fa-regular fa-image text-neutral-500 mr-2 text-xs"></i>
             <span id="lightbox-filename" class="text-xs font-mono tracking-widest uppercase text-black dark:text-white font-bold"></span>
         </div>
 
-        <!-- Top Right Controls -->
         <div class="absolute top-6 right-6 flex items-center gap-6 z-10">
             <span id="lightbox-counter" class="text-xs font-mono tracking-widest uppercase text-neutral-500 mt-1 hidden sm:block"></span>
             
-            <!-- Total Selected Counter -->
-            <span class="text-[10px] font-mono tracking-widest uppercase text-neutral-500 mt-1 hidden sm:block border-r border-neutral-300 dark:border-neutral-700 pr-6">
-                Total: <span id="lightbox-total-count" class="text-black dark:text-white font-bold text-xs">0</span>
-            </span>
-            
-            <!-- Lightbox Select Button -->
             <button id="lightbox-select-btn" onclick="toggleLightboxSelection()" class="border px-4 py-2 text-xs font-mono uppercase tracking-widest transition-colors flex items-center gap-2">
                 <i class="fa-solid fa-check"></i> <span id="lightbox-select-text">Select</span>
             </button>
@@ -146,7 +141,6 @@
         
         <button onclick="prevImage()" class="absolute left-6 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black dark:hover:text-white transition text-3xl p-4 z-10"><i class="fa-solid fa-angle-left"></i></button>
         
-        <!-- Image & Watermark Container -->
         <div class="w-full h-full max-w-5xl max-h-[85vh] flex items-center justify-center p-4 overflow-auto relative">
             <div class="relative inline-block max-w-full max-h-full">
                 <img id="lightbox-img" src="" alt="Full Preview" class="max-w-full max-h-full object-contain cursor-zoom-in transition-transform duration-300" onclick="toggleZoom()">
@@ -160,23 +154,29 @@
         const specialId = "{{ client.special_id }}";
         let currentEventId = null;
         let currentFolderId = null;
+        let currentEventName = null;
         let nextPageToken = null;
         let isLoading = false;
         
-        let selectedFileIds = new Set();
-        let currentImages = []; // Stores current grid images for lightbox navigation
-        let allFetchedImagesMap = new Map(); // Global memory map for Review Modal
+        // State Management
+        let selectedFileIdsByEvent = {}; // { eventId: Set(fileId1, fileId2) }
+        let currentImages = []; 
         let currentLightboxIndex = 0;
-        let autoSaveTimeout = null; // Used for debouncing auto-save
+        let autoSaveTimeout = null; 
+        
+        // NEW: AbortController to kill requests when tabs are switched quickly
+        let fetchAbortController = null;
 
-        // Intersection Observer for Infinite Pagination
         const observer = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting && nextPageToken && !isLoading) {
                 fetchImages(currentFolderId, nextPageToken);
             }
         }, { rootMargin: '200px' });
 
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            // First, fetch ALL selections for ALL events to initialize state globally
+            await initializeAllSelections();
+            
             const firstTab = document.querySelector('.event-tab');
             if (firstTab) firstTab.click();
             
@@ -189,8 +189,31 @@
             });
         });
 
-        async function loadEvent(eventId, folderId, tabElement) {
+        // Fetch selections for all events upfront
+        async function initializeAllSelections() {
+            try {
+                const res = await fetch(`/api/selections/all/${specialId}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    // Initialize sets
+                    document.querySelectorAll('.event-tab').forEach(tab => {
+                        const evtId = tab.dataset.eventId;
+                        selectedFileIdsByEvent[evtId] = new Set(data.selections[evtId] || []);
+                    });
+                    updateAllCounters();
+                }
+            } catch (err) {
+                console.error("Failed to init selections", err);
+            }
+        }
+
+        async function loadEvent(eventId, folderId, tabElement, eventName) {
             if (currentEventId === eventId) return;
+
+            // Kill any ongoing fetching from previous tab
+            if (fetchAbortController) {
+                fetchAbortController.abort();
+            }
             
             // Reset UI
             document.querySelectorAll('.event-tab').forEach(el => {
@@ -203,18 +226,14 @@
             document.getElementById('gallery-grid').innerHTML = '';
             currentEventId = eventId;
             currentFolderId = folderId;
+            currentEventName = eventName;
             nextPageToken = null;
             currentImages = [];
-            
-            try {
-                const res = await fetch(`/api/selections/${specialId}/${eventId}`);
-                const data = await res.json();
-                
-                // Add DB selections to global set safely without overwriting other tabs' selections
-                (data.selected_ids || []).forEach(id => selectedFileIds.add(id));
-                updateActionBar();
-            } catch (err) {
-                console.error("Failed to load selections", err);
+            isLoading = false;
+
+            // Ensure Set exists
+            if(!selectedFileIdsByEvent[currentEventId]) {
+                selectedFileIdsByEvent[currentEventId] = new Set();
             }
 
             fetchImages(folderId);
@@ -225,14 +244,14 @@
             isLoading = true;
             document.getElementById('loading-sentinel').classList.remove('hidden');
 
+            fetchAbortController = new AbortController();
+            const signal = fetchAbortController.signal;
+
             const url = `/api/images/${folderId}${pageToken ? `?pageToken=${pageToken}` : ''}`;
             
             try {
-                const response = await fetch(url);
+                const response = await fetch(url, { signal });
                 const data = await response.json();
-                
-                // Store in global memory for the Review Modal
-                data.images.forEach(img => allFetchedImagesMap.set(img.id, img));
                 
                 nextPageToken = data.next_page_token;
                 renderGrid(data.images);
@@ -244,7 +263,11 @@
                     document.getElementById('loading-sentinel').classList.add('hidden');
                 }
             } catch (error) {
-                console.error("Error fetching images:", error);
+                if (error.name === 'AbortError') {
+                    console.log('Fetch aborted for previous tab');
+                } else {
+                    console.error("Error fetching images:", error);
+                }
             } finally {
                 isLoading = false;
             }
@@ -252,20 +275,22 @@
 
         function renderGrid(images) {
             const grid = document.getElementById('gallery-grid');
+            const currentSelections = selectedFileIdsByEvent[currentEventId] || new Set();
+
             images.forEach((img) => {
                 const globalIndex = currentImages.length;
                 currentImages.push(img);
-                const isSelected = selectedFileIds.has(img.id);
+                const isSelected = currentSelections.has(img.id);
                 
                 const card = document.createElement('div');
-                card.className = "relative group aspect-[4/5] bg-neutral-200 dark:bg-neutral-800 overflow-hidden";
+                card.className = "relative group aspect-[4/5] bg-neutral-200 dark:bg-neutral-800 overflow-hidden file-card-" + img.id;
                 card.innerHTML = `
                     <img src="${img.thumbnail}" alt="${img.name}" loading="lazy" 
                          onerror="this.onerror=null; this.src='${img.full}';" 
                          class="w-full h-full object-cover cursor-pointer transition-transform duration-700 group-hover:scale-105" 
                          onclick="openLightbox(${globalIndex})">
                     <div class="absolute top-3 right-3 z-10">
-                        <button data-file-id="${img.id}" onclick="toggleGridSelection('${img.id}')" class="w-8 h-8 flex items-center justify-center border-2 transition-all ${isSelected ? 'bg-black border-black text-white dark:bg-white dark:border-white dark:text-black' : 'border-white/70 bg-black/20 text-transparent hover:border-white'}">
+                        <button data-file-id="${img.id}" onclick="toggleGridSelection('${img.id}', '${currentEventId}')" class="selection-btn w-8 h-8 flex items-center justify-center border-2 transition-all ${isSelected ? 'bg-black border-black text-white dark:bg-white dark:border-white dark:text-black' : 'border-white/70 bg-black/20 text-transparent hover:border-white'}">
                             <i class="fa-solid fa-check text-sm"></i>
                         </button>
                     </div>
@@ -274,59 +299,74 @@
             });
         }
 
-        // Selection Central Function
-        function toggleGridSelection(fileId) {
-            if (selectedFileIds.has(fileId)) {
-                selectedFileIds.delete(fileId);
+        function toggleGridSelection(fileId, evtId) {
+            const evIdToUse = evtId || currentEventId;
+            const targetSet = selectedFileIdsByEvent[evIdToUse];
+
+            if (targetSet.has(fileId)) {
+                targetSet.delete(fileId);
             } else {
-                selectedFileIds.add(fileId);
+                targetSet.add(fileId);
             }
             
-            // Sync visual button state in the main grid
-            const btnElement = document.querySelector(`button[data-file-id="${fileId}"]`);
+            // Sync visual button state if it exists in DOM
+            const btnElement = document.querySelector(`.file-card-${fileId} .selection-btn`);
             if(btnElement) {
-                if (selectedFileIds.has(fileId)) {
-                    btnElement.className = "w-8 h-8 flex items-center justify-center border-2 bg-black border-black text-white dark:bg-white dark:border-white dark:text-black transition-all";
+                if (targetSet.has(fileId)) {
+                    btnElement.className = "selection-btn w-8 h-8 flex items-center justify-center border-2 bg-black border-black text-white dark:bg-white dark:border-white dark:text-black transition-all";
                 } else {
-                    btnElement.className = "w-8 h-8 flex items-center justify-center border-2 border-white/70 bg-black/20 text-transparent hover:border-white transition-all";
+                    btnElement.className = "selection-btn w-8 h-8 flex items-center justify-center border-2 border-white/70 bg-black/20 text-transparent hover:border-white transition-all";
                 }
             }
-            updateActionBar();
             
-            // Trigger auto-save immediately after DOM updates
-            triggerAutoSave();
+            updateAllCounters();
+            triggerAutoSave(evIdToUse);
         }
 
-        function updateActionBar() {
-            const count = selectedFileIds.size;
+        function updateAllCounters() {
+            let grandTotal = 0;
             
-            // Update bottom action bar counter
-            document.getElementById('selection-count').innerText = count;
-            
-            // Update the new lightbox counter
-            const lightboxTotalEl = document.getElementById('lightbox-total-count');
-            if (lightboxTotalEl) {
-                lightboxTotalEl.innerText = count;
+            // Update individual tab counts
+            for (const [evtId, selectionSet] of Object.entries(selectedFileIdsByEvent)) {
+                const count = selectionSet.size;
+                grandTotal += count;
+                
+                const tabBadge = document.querySelector(`.tab-count[data-count-for="${evtId}"]`);
+                if (tabBadge) {
+                    if (count > 0) {
+                        tabBadge.innerText = count;
+                        tabBadge.classList.remove('hidden');
+                    } else {
+                        tabBadge.classList.add('hidden');
+                    }
+                }
             }
 
-            // Show/Hide bottom action bar
-            const bar = document.getElementById('action-bar');
-            if (count > 0) {
-                bar.classList.remove('translate-y-24');
-            } else {
-                bar.classList.add('translate-y-24');
+            // Update main Nav button count
+            const navTotalEl = document.getElementById('nav-total-count');
+            if (navTotalEl) {
+                navTotalEl.innerText = grandTotal;
+                if(grandTotal > 0) {
+                    navTotalEl.classList.add('bg-green-500', 'text-white');
+                    navTotalEl.classList.remove('bg-neutral-800', 'dark:bg-neutral-200');
+                } else {
+                    navTotalEl.classList.remove('bg-green-500', 'text-white');
+                    navTotalEl.classList.add('bg-neutral-800', 'dark:bg-neutral-200');
+                }
             }
+            
+            // Update Review Page count
+            const reviewCountEl = document.getElementById('review-count-display');
+            if(reviewCountEl) reviewCountEl.innerText = grandTotal;
         }
 
-        // Debounced Auto Save Function
-        function triggerAutoSave() {
+        function triggerAutoSave(evtId) {
             const statusEl = document.getElementById('save-status');
             if (statusEl) {
-                statusEl.innerText = "Saving...";
+                statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
                 statusEl.classList.remove('opacity-0');
             }
 
-            // Clear previous timeout to debounce rapid clicks
             if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
 
             autoSaveTimeout = setTimeout(async () => {
@@ -336,25 +376,22 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             special_id: specialId,
-                            event_id: currentEventId,
-                            selected_ids: Array.from(selectedFileIds)
+                            event_id: evtId,
+                            selected_ids: Array.from(selectedFileIdsByEvent[evtId])
                         })
                     });
                     
                     if (response.ok && statusEl) {
-                        statusEl.innerText = "Saved ✓";
-                        // Fade out the success message after 2 seconds
-                        setTimeout(() => {
-                            statusEl.classList.add('opacity-0');
-                        }, 2000);
+                        statusEl.innerHTML = '<i class="fa-solid fa-check"></i> Saved';
+                        setTimeout(() => { statusEl.classList.add('opacity-0'); }, 2000);
                     }
                 } catch (error) {
                     if (statusEl) statusEl.innerText = "Error Saving";
-                    console.error("Auto-save failed", error);
                 }
-            }, 500); // 500ms delay
+            }, 500); 
         }
 
+        // --- Lightbox Functions ---
         function openLightbox(index) {
             currentLightboxIndex = index;
             const imgData = currentImages[index];
@@ -366,11 +403,8 @@
             fullImage.onload = () => { if(currentLightboxIndex === index) imgEl.src = imgData.full; };
 
             document.getElementById('lightbox-counter').innerText = `${index + 1} / ${currentImages.length}`;
-            
-            // Inject the filename into the top-left display
             document.getElementById('lightbox-filename').innerText = imgData.name;
             
-            // Sync Lightbox Select Button State
             updateLightboxSelectBtn(imgData.id);
 
             document.getElementById('lightbox').classList.remove('hidden');
@@ -380,15 +414,16 @@
 
         function toggleLightboxSelection() {
             const imgId = currentImages[currentLightboxIndex].id;
-            toggleGridSelection(imgId); // Reuse the core selection logic (which triggers auto-save)
-            updateLightboxSelectBtn(imgId); // Sync the lightbox UI visually
+            toggleGridSelection(imgId, currentEventId); 
+            updateLightboxSelectBtn(imgId); 
         }
 
         function updateLightboxSelectBtn(fileId) {
             const btn = document.getElementById('lightbox-select-btn');
             const text = document.getElementById('lightbox-select-text');
+            const targetSet = selectedFileIdsByEvent[currentEventId];
             
-            if (selectedFileIds.has(fileId)) {
+            if (targetSet && targetSet.has(fileId)) {
                 btn.classList.add('bg-black', 'text-white', 'dark:bg-white', 'dark:text-black', 'border-black', 'dark:border-white');
                 btn.classList.remove('text-neutral-500', 'border-neutral-500');
                 text.innerText = "Selected";
@@ -420,81 +455,96 @@
             }
         }
 
-        function toggleZoom() {
-            document.getElementById('lightbox-img').classList.toggle('zoom-active');
-        }
-
+        function toggleZoom() { document.getElementById('lightbox-img').classList.toggle('zoom-active'); }
         function toggleTheme() {
             document.documentElement.classList.toggle('dark');
             localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
         }
 
-        // --- Review & Submission Modal ---
-        function openReviewModal() {
-            const count = selectedFileIds.size;
-            if (count === 0) {
-                alert("Please select at least one image before submitting.");
+        // --- FULL PAGE REVIEW LOGIC ---
+        async function openReviewPage() {
+            let total = 0;
+            for (const s of Object.values(selectedFileIdsByEvent)) total += s.size;
+            
+            if (total === 0) {
+                alert("Please select at least one image before reviewing.");
                 return;
             }
 
-            document.getElementById('review-count-display').innerText = count;
-            const reviewGrid = document.getElementById('review-gallery-grid');
-            reviewGrid.innerHTML = ''; // Clear previous
+            // Hide Gallery, Show Review
+            document.getElementById('gallery-view').classList.add('hidden');
+            document.getElementById('event-tabs-container').classList.add('hidden');
+            document.getElementById('review-view').classList.remove('hidden');
+            document.getElementById('nav-review-btn').classList.add('hidden');
+            
+            const reviewContent = document.getElementById('review-content');
+            reviewContent.innerHTML = `
+                <div class="w-full text-center py-20" id="review-loading">
+                    <i class="fa-solid fa-circle-notch fa-spin text-3xl text-neutral-400"></i>
+                    <p class="text-xs font-mono tracking-widest uppercase text-neutral-500 mt-4">Compiling your final selections...</p>
+                </div>`;
 
-            // Extract selected images from our global fetched memory map
-            const selectedImages = [];
-            selectedFileIds.forEach(id => {
-                if(allFetchedImagesMap.has(id)) {
-                    selectedImages.push(allFetchedImagesMap.get(id));
+            // Fetch actual full details for selected images from backend
+            try {
+                const response = await fetch(`/api/selections/details/${specialId}`);
+                const eventData = await response.json();
+                
+                reviewContent.innerHTML = ''; // Clear loading
+                
+                for (const event of eventData.events) {
+                    if (event.images.length === 0) continue;
+                    
+                    const section = document.createElement('div');
+                    section.className = "mb-12";
+                    
+                    let imagesHTML = event.images.map(img => `
+                        <div class="relative aspect-[4/5] bg-neutral-200 dark:bg-neutral-800 overflow-hidden group review-card-${img.id}">
+                            <img src="${img.thumbnail}" class="w-full h-full object-cover">
+                            <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <button onclick="removeFromReview('${img.id}', '${event.event_id}')" class="bg-red-600 text-white text-[10px] font-mono tracking-widest uppercase px-6 py-3 hover:bg-red-500 transition">Remove</button>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    section.innerHTML = `
+                        <h3 class="text-xs font-mono uppercase tracking-widest text-neutral-500 mb-4 border-b border-neutral-200 dark:border-neutral-800 pb-2">${event.event_name} (${event.images.length})</h3>
+                        <div class="masonry-grid">${imagesHTML}</div>
+                    `;
+                    reviewContent.appendChild(section);
                 }
-            });
-
-            // Build grid
-            selectedImages.forEach(img => {
-                const card = document.createElement('div');
-                card.className = "relative aspect-[4/5] bg-neutral-200 dark:bg-neutral-800 overflow-hidden group";
-                card.innerHTML = `
-                    <img src="${img.thumbnail}" class="w-full h-full object-cover">
-                    <!-- Overlay Unselect Option for Review Grid -->
-                    <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button onclick="removeFromReview('${img.id}', this.parentElement.parentElement)" class="bg-red-600 text-white text-[10px] font-mono tracking-widest uppercase px-4 py-2 hover:bg-red-500 transition">Remove</button>
-                    </div>
-                `;
-                reviewGrid.appendChild(card);
-            });
-
-            document.getElementById('review-modal').classList.remove('hidden');
-            document.getElementById('review-modal').classList.add('flex');
-            document.body.style.overflow = 'hidden';
-        }
-
-        function removeFromReview(fileId, cardElement) {
-            toggleGridSelection(fileId); // Deselect (which triggers auto-save)
-            cardElement.remove(); // Remove visually from modal
-            document.getElementById('review-count-display').innerText = selectedFileIds.size; // Update Modal Counter
-            if (selectedFileIds.size === 0) {
-                closeReviewModal(); // Auto close if they empty the list
+            } catch (e) {
+                reviewContent.innerHTML = `<p class="text-red-500">Failed to load selections. Please try again.</p>`;
             }
         }
 
-        function closeReviewModal() {
-            document.getElementById('review-modal').classList.add('hidden');
-            document.getElementById('review-modal').classList.remove('flex');
-            document.body.style.overflow = '';
+        function closeReviewPage() {
+            document.getElementById('review-view').classList.add('hidden');
+            document.getElementById('gallery-view').classList.remove('hidden');
+            document.getElementById('event-tabs-container').classList.remove('hidden');
+            document.getElementById('nav-review-btn').classList.remove('hidden');
+        }
+
+        function removeFromReview(fileId, evtId) {
+            toggleGridSelection(fileId, evtId); // De-select and auto-save
+            
+            // Remove the card from DOM
+            const card = document.querySelector(`.review-card-${fileId}`);
+            if (card) card.remove();
+            
+            // Check if everything is empty
+            let total = 0;
+            for (const s of Object.values(selectedFileIdsByEvent)) total += s.size;
+            if (total === 0) {
+                closeReviewPage();
+            }
         }
 
         async function confirmAndSubmit() {
-            if(!confirm("Are you ready to send these final selections to the photographer?")) return;
+            if(!confirm("Are you ready to finalize and send these selections to the studio?")) return;
             
             const btn = document.getElementById('final-submit-btn');
-            btn.innerText = "SUBMITTING...";
-            
-            // Execute one final explicit save to ensure backend is fully synced before marking complete
-            await fetch('/api/selections/save', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ special_id: specialId, event_id: currentEventId, selected_ids: Array.from(selectedFileIds) })
-            });
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> SUBMITTING...';
+            btn.disabled = true;
 
             try {
                 const response = await fetch('/api/selections/complete', {
@@ -504,21 +554,17 @@
                 });
                 
                 if (response.ok) {
-                    btn.innerText = "COMPLETED ✓";
+                    btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i> SUBMITTED SUCCESSFULLY';
                     btn.classList.remove('bg-green-600', 'hover:bg-green-500');
-                    btn.classList.add('bg-neutral-800', 'dark:bg-neutral-200', 'opacity-50', 'cursor-not-allowed');
-                    btn.disabled = true;
-                    alert("Thank you! Your final selections have been sent to the photographer.");
-                    closeReviewModal();
-                    
-                    // Also disable original button
-                    const originBtn = document.getElementById('review-btn');
-                    originBtn.innerText = "COMPLETED ✓";
-                    originBtn.disabled = true;
-                    originBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    btn.classList.add('bg-black', 'dark:bg-white', 'text-white', 'dark:text-black');
+                    alert("Thank you! Your final selections have been received.");
+                    setTimeout(() => { window.location.href = "/"; }, 2000);
+                } else {
+                    throw new Error("Submission failed");
                 }
             } catch (error) {
-                btn.innerText = "ERROR";
+                btn.innerText = "ERROR - TRY AGAIN";
+                btn.disabled = false;
             }
         }
     </script>
