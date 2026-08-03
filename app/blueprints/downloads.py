@@ -1,5 +1,5 @@
 import os
-from flask import Blueprint, current_app, flash, redirect, url_for
+from flask import Blueprint, current_app, flash, redirect, url_for, request
 from pymongo import MongoClient
 from app.services.drive_service import get_drive_service
 from googleapiclient.errors import HttpError
@@ -27,14 +27,17 @@ def batch_callback(request_id, response, exception):
     if exception:
         print(f"Error copying file in batch: {exception}")
 
-@downloads_bp.route("/zip/<special_id>")
+# NEW: Changed to POST to securely accept the dynamic folder ID from the form
+@downloads_bp.route("/zip/<special_id>", methods=["POST"])
 def sync_to_drive(special_id):
-    """
-    CLOUD NATIVE APPROACH:
-    Instead of pulling bytes through Render, this instructs Google Drive to clone 
-    the selected files into a new structured folder and redirects the Admin to it.
-    """
     special_id_clean = special_id.strip().upper()
+    
+    # Grab the target folder ID passed from the frontend modal
+    target_folder_id = request.form.get("target_folder_id", "").strip()
+    if not target_folder_id:
+        flash("Destination folder link/ID is required.", "error")
+        return redirect(url_for("admin.admin_dashboard"))
+
     db = get_db()
     
     # 1. Fetch Client and Selections
@@ -53,7 +56,7 @@ def sync_to_drive(special_id):
         flash("Google Drive integration error.", "error")
         return redirect(url_for("admin.admin_dashboard"))
 
-    # 2. Pre-fetch original filenames (bypasses Google's Query length limit)
+    # 2. Pre-fetch original filenames
     file_names_map = {}
     event_map = {}
     
@@ -85,18 +88,19 @@ def sync_to_drive(special_id):
                 print(f"Error fetching names for folder {folder_id}: {e}")
                 break
 
-    # 3. Create Root "Final Selections" Folder in Google Drive
+    # 3. Create Root "Final Selections" Folder inside the DYNAMIC target folder
     root_folder_name = f"{client['client_name'].replace(' ', '_')} - Final Selections"
     try:
-        root_folder = create_drive_folder(drive_service, root_folder_name)
+        # Pass the dynamic target_folder_id right here!
+        root_folder = create_drive_folder(drive_service, root_folder_name, parent_id=target_folder_id)
         root_folder_id = root_folder['id']
         root_folder_link = root_folder['webViewLink']
     except Exception as e:
-        flash("Failed to create root folder in Google Drive.", "error")
+        print(f"Drive Creation Error: {e}")
+        flash("Failed to create root folder in Google Drive. Check permissions and Folder URL.", "error")
         return redirect(url_for("admin.admin_dashboard"))
 
     # 4. Create Subfolders and Execute BATCH Copy
-    # Batching groups up to 100 copy requests into 1 network call, taking just seconds.
     for sel in selections:
         event_name = event_map.get(sel["event_id"], "Other")
         file_ids = sel.get("selected_file_ids", [])
@@ -104,34 +108,35 @@ def sync_to_drive(special_id):
         if not file_ids:
             continue
             
-        # Create subfolder for the event (e.g., "Pre Wedding")
         subfolder = create_drive_folder(drive_service, event_name, parent_id=root_folder_id)
         subfolder_id = subfolder['id']
         
-        # Setup Google API Batch Request
         batch = drive_service.new_batch_http_request(callback=batch_callback)
         request_count = 0
         
         for file_id in file_ids:
             file_name = file_names_map.get(file_id, f"{file_id}.jpg")
+            
+            # THE FIX: Create a 0-byte Shortcut instead of duplicating the heavy file
             body = {
                 'name': file_name,
+                'mimeType': 'application/vnd.google-apps.shortcut',
+                'shortcutDetails': {
+                    'targetId': file_id
+                },
                 'parents': [subfolder_id]
             }
             
-            # Queue the file duplication on Google's servers
-            batch.add(drive_service.files().copy(fileId=file_id, body=body, fields='id'))
+            # Notice we changed .copy() to .create()
+            batch.add(drive_service.files().create(body=body, fields='id'))
             request_count += 1
             
-            # Google API limits batches to 100 requests max. Execute and reset if we hit 100.
             if request_count % 100 == 0:
                 batch.execute()
                 batch = drive_service.new_batch_http_request(callback=batch_callback)
         
-        # Execute any remaining requests in the final batch
         if request_count % 100 != 0:
             batch.execute()
 
-    # 5. Redirect the Admin straight to the new Google Drive folder!
     flash(f"Success! Google Drive has cloned the files. Opening folder...", "success")
     return redirect(root_folder_link)

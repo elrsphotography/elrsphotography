@@ -8,7 +8,10 @@ from flask import current_app
 def get_drive_service():
     """Initializes and returns the Google Drive API service."""
     creds_file = current_app.config.get("SERVICE_ACCOUNT_FILE", "credentials.json")
-    scopes = ["https://www.googleapis.com/auth/drive.readonly"]
+    
+    # UPDATED: Upgraded from drive.readonly to full drive access
+    # This grants permission to create folders and copy files.
+    scopes = ["https://www.googleapis.com/auth/drive"]
     
     env_json = current_app.config.get("SERVICE_ACCOUNT_JSON_ENV")
     
@@ -34,7 +37,7 @@ def fetch_paginated_images(folder_id, page_token=None):
 
     try:
         query = f"'{folder_id}' in parents and mimeType contains 'image/' and trashed = false"
-        # UPDATED: Request 'thumbnailLink' directly from the API
+        # Request 'thumbnailLink' directly from the API
         results = service.files().list(
             q=query, 
             pageSize=50, 

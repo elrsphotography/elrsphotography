@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/logo.png') }}?v=2">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uploads/logo.png') }}?v=2">
     <title>Admin Dashboard - ELRS Photography</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -61,7 +61,7 @@
                     <h2 class="font-mono text-xs uppercase tracking-widest font-bold">API Service Account</h2>
                 </div>
                 <p class="text-sm font-light text-neutral-600 dark:text-neutral-400 max-w-2xl">
-                    Grant 'Viewer' access to your Google Drive folders using this system email. This enables secure, automated image ingestion.
+                    Grant 'Editor' access to your destination Google Drive folders using this system email. This enables secure, automated image ingestion and cloning.
                 </p>
                 <code id="service-email" class="inline-block bg-neutral-100 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 text-black dark:text-white font-mono text-xs px-4 py-2 select-all mt-2">
                     {{ service_email }}
@@ -130,45 +130,47 @@
                 <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 transition-colors duration-300">
                     
                     <!-- Client Header -->
-<div class="px-8 py-6 border-b border-neutral-200 dark:border-neutral-800 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-neutral-50 dark:bg-neutral-950">
-    <div>
-        <div class="flex items-center space-x-4 mb-2">
-            <span class="bg-black dark:bg-white text-white dark:text-black font-mono text-[10px] tracking-widest px-2 py-1">
-                {{ client.special_id }}
-            </span>
-            <h3 class="text-lg font-serif text-black dark:text-white">{{ client.client_name }}</h3>
-            
-            <!-- NEW: Completion Badge -->
-            {% if client.selection_status == 'COMPLETED' %}
-                <span class="bg-green-100 border border-green-400 text-green-700 text-[10px] font-mono tracking-widest uppercase px-2 py-0.5 ml-3 flex items-center">
-                    <i class="fa-solid fa-check-double mr-1"></i> Finalized
-                </span>
-            {% endif %}
-        </div>
-        <p class="text-[10px] font-mono uppercase tracking-widest text-neutral-500">
-            {% if client.email %} {{ client.email }} | {% endif %}
-            Selections: <strong class="text-black dark:text-white">{{ client.total_selections }}</strong>
-        </p>
-    </div>
+                    <div class="px-8 py-6 border-b border-neutral-200 dark:border-neutral-800 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-neutral-50 dark:bg-neutral-950">
+                        <div>
+                            <div class="flex items-center space-x-4 mb-2">
+                                <span class="bg-black dark:bg-white text-white dark:text-black font-mono text-[10px] tracking-widest px-2 py-1">
+                                    {{ client.special_id }}
+                                </span>
+                                <h3 class="text-lg font-serif text-black dark:text-white">{{ client.client_name }}</h3>
+                                
+                                {% if client.selection_status == 'COMPLETED' %}
+                                    <span class="bg-green-100 border border-green-400 text-green-700 text-[10px] font-mono tracking-widest uppercase px-2 py-0.5 ml-3 flex items-center">
+                                        <i class="fa-solid fa-check-double mr-1"></i> Finalized
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <p class="text-[10px] font-mono uppercase tracking-widest text-neutral-500">
+                                {% if client.email %} {{ client.email }} | {% endif %}
+                                Selections: <strong class="text-black dark:text-white">{{ client.total_selections }}</strong>
+                            </p>
+                        </div>
 
-    <!-- Action Buttons -->
-    <div class="flex items-center space-x-4">
-        <button onclick="copyGalleryLink('{{ client.special_id }}')" class="text-xs font-mono uppercase tracking-widest text-neutral-500 hover:text-black dark:hover:text-white transition-colors">
-            Copy Link
-        </button>
-        <a href="{{ url_for('gallery.client_gallery', special_id=client.special_id) }}" target="_blank" class="text-xs font-mono uppercase tracking-widest text-neutral-500 hover:text-black dark:hover:text-white transition-colors">
-            Preview
-        </a>
-        <a href="{{ url_for('downloads.download_zip', special_id=client.special_id) }}" class="text-xs font-mono uppercase tracking-widest text-black dark:text-white border border-black dark:border-white px-3 py-1 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors">
-        Download ZIP
-        </a>
-        <form action="{{ url_for('admin.delete_client', special_id=client.special_id) }}" method="POST" onsubmit="return confirm('Purge {{ client.special_id }} and all associated data from the system?')">
-            <button type="submit" class="text-xs font-mono uppercase tracking-widest border border-neutral-300 dark:border-neutral-700 px-3 py-1 hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white transition-colors">
-                Purge
-            </button>
-        </form>
-    </div>
-</div>
+                        <!-- Action Buttons -->
+                        <div class="flex items-center space-x-4">
+                            <button onclick="copyGalleryLink('{{ client.special_id }}')" class="text-xs font-mono uppercase tracking-widest text-neutral-500 hover:text-black dark:hover:text-white transition-colors">
+                                Copy Link
+                            </button>
+                            <a href="{{ url_for('gallery.client_gallery', special_id=client.special_id) }}" target="_blank" class="text-xs font-mono uppercase tracking-widest text-neutral-500 hover:text-black dark:hover:text-white transition-colors">
+                                Preview
+                            </a>
+                            
+                            <!-- NEW: Sync to Drive Modal Trigger -->
+                            <button onclick="openSyncModal('{{ client.special_id }}')" class="text-xs font-mono uppercase tracking-widest text-black dark:text-white border border-black dark:border-white px-3 py-1 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition-colors">
+                                Sync to Drive
+                            </button>
+
+                            <form action="{{ url_for('admin.delete_client', special_id=client.special_id) }}" method="POST" onsubmit="return confirm('Purge {{ client.special_id }} and all associated data from the system?')">
+                                <button type="submit" class="text-xs font-mono uppercase tracking-widest border border-neutral-300 dark:border-neutral-700 px-3 py-1 hover:border-black dark:hover:border-white hover:text-black dark:hover:text-white transition-colors">
+                                    Purge
+                                </button>
+                            </form>
+                        </div>
+                    </div>
 
                     <!-- Events Table -->
                     <div class="p-8">
@@ -230,6 +232,29 @@
         </div>
     </div>
 
+    <!-- NEW: Dynamic Sync Modal -->
+    <div id="sync-modal" class="fixed inset-0 bg-neutral-900/80 z-50 hidden flex-col items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300">
+        <div class="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-8 max-w-lg w-full shadow-2xl relative">
+            <button onclick="closeSyncModal()" class="absolute top-4 right-4 text-neutral-400 hover:text-black dark:hover:text-white transition">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            <h3 class="font-serif text-2xl font-bold text-black dark:text-white mb-2 flex items-center">
+                <i class="fa-brands fa-google-drive mr-3 text-blue-500"></i> Sync to Drive
+            </h3>
+            <p class="text-[10px] font-mono tracking-widest text-neutral-500 mb-6 uppercase">Paste the URL of your destination Google Drive folder below.</p>
+            
+            <form id="sync-form" action="" method="POST">
+                <label class="block text-[10px] font-mono tracking-widest uppercase text-neutral-500 mb-2">Destination Folder Link</label>
+                <input type="text" id="sync-folder-input" name="target_folder_id" placeholder="https://drive.google.com/drive/folders/..." required class="w-full px-3 py-2 bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-700 focus:border-black dark:focus:border-white focus:outline-none font-mono text-xs transition-colors mb-6 text-black dark:text-white">
+                
+                <div class="flex justify-end space-x-4">
+                    <button type="button" onclick="closeSyncModal()" class="text-xs font-mono uppercase tracking-widest text-neutral-500 hover:text-black dark:hover:text-white transition-colors">Cancel</button>
+                    <button type="submit" id="sync-submit-btn" class="bg-black dark:bg-white text-white dark:text-black font-mono text-[10px] uppercase tracking-widest px-6 py-2 hover:bg-neutral-800 dark:hover:bg-neutral-200 transition-colors">Execute Sync</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- JavaScript Handlers -->
     <script>
         function toggleTheme() {
@@ -252,6 +277,45 @@
                 alert(`Path mapped: ${link}`);
             });
         }
+
+        // --- NEW: Sync Modal Logic with Smart Link Parser ---
+        function openSyncModal(specialId) {
+            const form = document.getElementById('sync-form');
+            form.action = `/downloads/zip/${specialId}`; // Dynamically route to correct client
+            document.getElementById('sync-folder-input').value = ''; // clear previous inputs
+            
+            const modal = document.getElementById('sync-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeSyncModal() {
+            const modal = document.getElementById('sync-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // Smart parser intercepts form submission to extract clean ID from raw URL
+        document.getElementById('sync-form').addEventListener('submit', function(e) {
+            const btn = document.getElementById('sync-submit-btn');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Syncing...';
+            btn.disabled = true;
+
+            const input = document.getElementById('sync-folder-input');
+            let val = input.value.trim();
+            
+            // Extract Google Drive ID if the user pasted a full URL
+            const urlMatch = val.match(/folders\/([a-zA-Z0-9_-]+)/);
+            if (urlMatch && urlMatch[1]) {
+                input.value = urlMatch[1];
+            } else if (val.includes('?id=')) {
+                const queryMatch = val.match(/\?id=([a-zA-Z0-9_-]+)/);
+                if (queryMatch && queryMatch[1]) {
+                    input.value = queryMatch[1];
+                }
+            }
+            // If neither match, we assume they pasted a raw ID directly. Allow it to submit.
+        });
     </script>
 </body>
 </html>
